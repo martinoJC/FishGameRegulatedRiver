@@ -70,13 +70,9 @@ html, body {
   inset: 0;
   z-index: 5;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  background: rgba(214, 214, 214, 0.92);
-  color: #45464a;
-  text-align: center;
+  background: rgba(35, 26, 16, 0.5);
   padding: 16px;
 }
 
@@ -84,19 +80,42 @@ html, body {
   display: none;
 }
 
-.overlay-screen h1 {
+/* Pixel-art wood panel (Kenney UI Pack: Adventure, CC0) used as a 9-slice
+   border-image so it stretches cleanly to fit each card's content
+   instead of being one fixed-size image. */
+.card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  max-width: 280px;
+  padding: 18px 16px;
+  color: #45464a;
+  text-align: center;
+  border-style: solid;
+  border-width: 16px;
+  border-image-source: url("assets/ui-panel.png");
+  border-image-slice: 8 fill;
+  border-image-width: 16px;
+  border-image-repeat: stretch;
+  image-rendering: pixelated;
+}
+
+.card h1 {
   margin: 0 0 4px;
   font-size: 26px;
 }
 
-.overlay-screen p {
+.card p {
   margin: 0;
   font-size: 13px;
-  white-space: nowrap;
 }
 
-#win-screen {
-  background: rgba(190, 224, 196, 0.94);
+#title-fish-canvas {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  width: 180px;
+  height: 80px;
 }
 
 #banner {
@@ -117,14 +136,23 @@ html, body {
   display: none;
 }
 
+/* Same Kenney pack, matching brown button tile — solid fill (vs. the
+   card's cream fill) so it reads as a distinct pressable element. */
 .overlay-button {
   margin-top: 12px;
   padding: 10px 16px;
   font-size: 14px;
-  background: #9ecfa0;
-  color: #33472f;
-  border: none;
-  border-radius: 6px;
+  font-weight: bold;
+  color: #fbf1de;
+  text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.4);
+  background: transparent;
+  border-style: solid;
+  border-width: 14px;
+  border-image-source: url("assets/ui-button.png");
+  border-image-slice: 16 fill;
+  border-image-width: 14px;
+  border-image-repeat: stretch;
+  image-rendering: pixelated;
   cursor: pointer;
 }
 

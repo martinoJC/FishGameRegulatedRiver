@@ -1,4 +1,4 @@
-# :fish: A game about a fish
+# :fish: River Fish Go Go
 
 <p align="left">
   <a href="/github/actions/workflow/status/:user/:repo/:workflow"><img alt="GitHub Actions Workflow Status" src="https://img.shields.io/github/actions/workflow/status/martinoJC/FishGameRegulatedRiver/.github%2Fworkflows%2Fdocker-image.yml" /></a>
@@ -25,3 +25,7 @@ If you are done with the game and would like to stop the server, run the followi
 ```
 docker compose down
 ```
+
+## Credits
+
+- UI card panel (`assets/ui-panel.png`) and button (`assets/ui-button.png`) from Kenney's [UI Pack: Adventure](https://kenney.nl/assets/ui-pack-adventure) (CC0).

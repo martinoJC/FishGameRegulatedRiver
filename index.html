@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>Fish Game: Regulated River</title>
+<title>River Fish Go Go</title>
 <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -11,6 +11,7 @@
     <canvas id="game-canvas" width="240" height="360"></canvas>
 
     <div id="hud">
+      <span id="level-label">Level 1</span>
       <span id="score">Score: 0</span>
       <div id="health-bar">
         <div id="health-bar-fill"></div>
@@ -21,23 +22,38 @@
     <div id="banner" class="hidden"></div>
 
     <div id="start-screen" class="overlay-screen">
-      <h1>Go Go Fish Upstream!</h1>
-      <p>You're a golden perch swimming upstream.</p>
-      <p>Dodge obstacles and eat crabs for health.</p>
-      <p>Reach the floodplain to win!</p>
-      <button id="start-button" class="overlay-button">Tap or press Space to start</button>
+      <div class="card">
+        <h1>River Fish Go Go</h1>
+        <canvas id="title-fish-canvas" width="180" height="80"></canvas>
+        <p>Migrate as an Australian fish.</p>
+        <p>Dodge obstacles and collect objects.</p>
+        <p>Reach the spawning ground to win!</p>
+        <button id="start-button" class="overlay-button">Tap or press Space to start</button>
+      </div>
     </div>
 
     <div id="game-over-screen" class="overlay-screen hidden">
-      <h1>Game Over</h1>
-      <p id="final-score">Score: 0</p>
-      <button id="restart-button" class="overlay-button">Tap or press Space to restart</button>
+      <div class="card">
+        <h1>Game Over</h1>
+        <p id="final-score">Score: 0</p>
+        <button id="restart-button" class="overlay-button">Tap or press Space to restart</button>
+      </div>
+    </div>
+
+    <div id="level-complete-screen" class="overlay-screen hidden">
+      <div class="card">
+        <h1 id="level-complete-title">Level Complete!</h1>
+        <p id="level-complete-body"></p>
+        <button id="continue-button" class="overlay-button">Tap or press Space to continue</button>
+      </div>
     </div>
 
     <div id="win-screen" class="overlay-screen hidden">
-      <h1>You made it to the floodplain!</h1>
-      <p id="win-score">Score: 0</p>
-      <button id="win-restart-button" class="overlay-button">Tap or press Space to play again</button>
+      <div class="card">
+        <h1>You made it through the regulated river!</h1>
+        <p id="win-score">Score: 0</p>
+        <button id="win-restart-button" class="overlay-button">Tap or press Space to play again</button>
+      </div>
     </div>
 
     <div id="touch-controls">
