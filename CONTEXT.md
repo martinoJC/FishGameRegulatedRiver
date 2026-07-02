@@ -14,7 +14,7 @@ We want to create a simple game in 2D. It will have multiple levels, each level 
 3. Expand to a 3-level arc, each level a different native fish species facing a different kind of river regulation, "more regulated" than the last — see `projectplan.md` for the full design.
 
 ## Current status
-Game is named **River Fish Go Go**. All 3 planned levels are built:
+Game is named **Regulated Waters**. All 3 planned levels are built:
 - Level 1 — golden perch, open regulated river (logs/weir/bird/turtle, fish ladder set-piece).
 - Level 2 — Murray cod, human trash/pollution theme (tire/net/toxic waste pipe, storm drain set-piece).
 - Level 3 — Australian longfin eel, dam/turbine theme at night (turbine grate/sluice gate/spillway eddy, turbine bypass set-piece); the eel is longer than the other two fish and has a swimming wiggle animation.

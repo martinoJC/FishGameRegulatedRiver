@@ -1,4 +1,4 @@
-# Project Plan — River Fish Go Go
+# Project Plan — Regulated Waters
 
 ## Game concept (from CONTEXT.md)
 - Top-down 2D pixel game. You play a fish swimming up a river.
@@ -144,9 +144,10 @@ Game states are `start` → `playing` → `entering` → (`gameover`, `levelcomp
 
 ## UI/assets and game name
 
-The game was named "Fish Game: Regulated River" while scaffolding, briefly
-renamed "Passage", then settled on its current name, **River Fish Go Go**
-— updated in `index.html`'s `<title>`/start-screen `<h1>` and `README.md`.
+The game was named "Fish Game: Regulated River" while scaffolding, then
+renamed in turn to "Passage", "River Fish Go Go", and finally
+**Regulated Waters** — updated in `index.html`'s `<title>`/start-screen
+`<h1>` and `README.md` each time.
 
 Overlay screens (start/game-over/level-complete/win) and buttons moved from
 flat CSS-colored boxes to real pixel-art panels: `assets/ui-panel.png`
