@@ -14,18 +14,28 @@
 | Tech stack | Plain JavaScript + HTML5 Canvas, no framework/build step | Fast to scaffold, deploys as static files, full control for a simple game |
 | Mobile input | On-screen tap zones (left half / right half of screen) | Simple, reliable, no gesture ambiguity |
 | Deployment | GitHub Actions workflow → GitHub Pages, triggered on push to main | Automatic deploys; leaves room for a build step later without changing the workflow |
+| Project structure | Single `index.html` + `game.js` + `style.css` at repo root | Matches the no-build-step decision; nothing to bundle |
+| Screen size handling | Fixed internal canvas resolution (240×360) scaled responsively via CSS (`image-rendering: pixelated`) | Keeps pixel art crisp at any screen size, including mobile |
+| Collision + game over | Instant game over on any obstacle contact, tap/Space/button to restart | Simplest to build for level 1; easy to change to a lives system later |
+| Scoring | Score = distance survived (time-based), best score stored in `localStorage` | No backend needed, gives players a reason to replay |
+| Difficulty curve | River scroll speed ramps up gradually over time (capped), obstacle spawn interval shortens as you survive longer | Matches "more regulated river" theme — level 1 should still get harder over a run |
+| Asset pipeline | Hand-authored pixel-grid sprites drawn directly on canvas (no external image-generation tool available in this environment) | Achieves genuine pixel art without needing PNG assets or an asset loader; kept the "AI-drawn pixel art" look by hand-designing the sprite grids |
+| Obstacle spawning | Weighted random spawning across 6 obstacle types (see below) | Keeps runs varied and replayable rather than one fixed pattern |
+
+## Obstacle types (level 1)
+| Type | Behaviour | Visual |
+|---|---|---|
+| Log | Solid floating obstacle of variable width/position, dodge either side | Procedural pixel rect with wood grain + log-end caps |
+| Weir | Spans just over half the river from one bank, single gap on the other side | Procedural pixelated concrete/spillway texture |
+| Fishing net | Spans further across the river than the weir (narrower gap = harder), spans from one bank | Procedural mesh texture with buoys at each end |
+| Predator bird | Smaller hazard that drifts side-to-side (sine wave) as it scrolls down | Hand-authored pixel sprite, top-down silhouette with spread wings |
+| Floating debris | Small, faster-than-river-flow hazard (tyre / bottle / can, randomly chosen) | Hand-authored pixel sprites, 3 variants |
+| Motorboat | Larger, fastest-moving hazard | Hand-authored pixel sprite with hull stripe + wake |
+
+**Backlog for later, more-regulated levels** (not built yet): irrigation pump intakes, fish ladder gates, lock chamber gates, pollution/turbidity zones. Revisit once level 1 is tuned and level 2+ design starts.
 
 ## Open questions still to decide
-These need a decision before or during initial scaffolding:
-
-1. **Project structure** — single `index.html` + `game.js` + `style.css` at repo root, or an `src/` + `public/` split?
-2. **Rendering approach** — draw simple pixel sprites (rectangles/circles first, real sprite art later), or hand/AI-drawn pixel art sprites from the start?
-3. **Obstacle spawning** — fixed hand-designed obstacle pattern for level 1, or randomized/procedural spawning?
-4. **Difficulty/speed curve** — does the river scroll speed increase over time, or stay constant for level 1?
-5. **Collision + game over** — what happens on hitting a barrier: instant game over, lose a life, or bounce/slow down?
-6. **Scoring** — is there a score (distance survived, time, etc.) and is it shown/stored anywhere (e.g. localStorage high score)?
-7. **Screen size handling** — fixed canvas resolution scaled to fit, or fully responsive canvas that resizes with the window/viewport?
-8. **Asset pipeline** — plain colored shapes to start (fastest), vs. importing actual pixel-art PNG sprites (needs an assets folder + loader)?
+None blocking further scaffolding right now — the list above covers the core decisions for level 1. Revisit tuning (obstacle spawn weights, gap widths, difficulty ramp pace) once the game has been played a few times.
 
 ## Proposed process to work through this
 1. Lock in the open questions above (quick answers, doesn't need to be perfect — level 1 is meant to be simple).

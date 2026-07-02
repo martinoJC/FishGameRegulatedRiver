@@ -1,6 +1,7 @@
 (() => {
   const canvas = document.getElementById("game-canvas");
   const ctx = canvas.getContext("2d");
+  ctx.imageSmoothingEnabled = false;
 
   const scoreEl = document.getElementById("score");
   const bestEl = document.getElementById("best");
@@ -15,20 +16,147 @@
   const BANK_WIDTH = 24;
   const RIVER_LEFT = BANK_WIDTH;
   const RIVER_RIGHT = WIDTH - BANK_WIDTH;
+  const RIVER_WIDTH = RIVER_RIGHT - RIVER_LEFT;
 
-  const FISH_WIDTH = 18;
-  const FISH_HEIGHT = 18;
+  // ---------------------------------------------------------------------
+  // Pixel-art sprites (hand-authored pixel grids, drawn as crisp blocks)
+  // ---------------------------------------------------------------------
+  function drawSprite(rows, palette, x, y, pixelSize) {
+    for (let r = 0; r < rows.length; r++) {
+      const row = rows[r];
+      for (let c = 0; c < row.length; c++) {
+        const ch = row[c];
+        if (ch === ".") continue;
+        ctx.fillStyle = palette[ch];
+        ctx.fillRect(
+          Math.round(x + c * pixelSize),
+          Math.round(y + r * pixelSize),
+          pixelSize,
+          pixelSize
+        );
+      }
+    }
+  }
+
+  function spriteDims(rows, pixelSize) {
+    return { width: rows[0].length * pixelSize, height: rows.length * pixelSize };
+  }
+
+  // Murray cod, facing "up" (river flows toward the player)
+  const FISH_PIXEL = 2;
+  const FISH_PALETTE = {
+    B: "#8a9a4a", // olive body
+    O: "#7a8a3f", // base olive
+    D: "#3f4d1f", // dark mottling
+    C: "#e6dcae", // cream belly
+    E: "#151515", // eye
+    F: "#a5622f", // fins/tail
+  };
+  const FISH_SPRITE = [
+    "....B....",
+    "...BBB...",
+    "..BDBDB..",
+    ".BEBDBEB.",
+    ".BBDBDBB.",
+    "CBBDBDBBC",
+    "CBDBBBDBC",
+    "CBBDBDBBC",
+    "CCBDBDBCC",
+    ".CBBBBBC.",
+    ".CCBBBCC.",
+    "..CCBCC..",
+    "..CFBFC..",
+    "...FBF...",
+    "..F.B.F..",
+    ".F..B..F.",
+  ];
+  const FISH_DIMS = spriteDims(FISH_SPRITE, FISH_PIXEL);
+
+  // Predator bird, viewed from above with wings spread
+  const BIRD_PIXEL = 2;
+  const BIRD_PALETTE = {
+    W: "#33261a", // wing
+    H: "#1c140d", // body
+    Y: "#e8b23d", // beak
+  };
+  const BIRD_SPRITE = [
+    "..W.....W..",
+    ".WWW...WWW.",
+    "WWWWWHWWWWW",
+    "..WWHHHWW..",
+    "...WHYHW...",
+    "....H.H....",
+  ];
+  const BIRD_DIMS = spriteDims(BIRD_SPRITE, BIRD_PIXEL);
+
+  // Motorboat, bow first
+  const BOAT_PIXEL = 2;
+  const BOAT_PALETTE = {
+    H: "#e8e8e8", // hull
+    R: "#c23b3b", // stripe
+    D: "#1c1c1c", // motor
+    W: "#dfe9f2", // wake
+  };
+  const BOAT_SPRITE = [
+    "....H....",
+    "...HHH...",
+    "..HHHHH..",
+    ".HRRRRRH.",
+    "HHHHHHHHH",
+    "HHHHHHHHH",
+    "HHRRRRRHH",
+    "HHHHHHHHH",
+    "HHHHHHHHH",
+    "HHRRRRRHH",
+    "HHHHHHHHH",
+    "HHHHHHHHH",
+    ".HHHHHHH.",
+    "..HHDHH..",
+    "...WDW...",
+    "..W.D.W..",
+  ];
+  const BOAT_DIMS = spriteDims(BOAT_SPRITE, BOAT_PIXEL);
+
+  // Floating debris variants
+  const DEBRIS_PIXEL = 2.2;
+  const DEBRIS_VARIANTS = [
+    {
+      palette: { T: "#2b2b2b" },
+      rows: [".TTTTT.", "TT...TT", "T.....T", "T.....T", "T.....T", "TT...TT", ".TTTTT."],
+    },
+    {
+      palette: { N: "#1c1c1c", G: "#2f6b3f" },
+      rows: ["..N..", "..N..", ".GGG.", "GGGGG", "GGGGG", "GGGGG", "GGGGG", "GGGGG", ".GGG."],
+    },
+    {
+      palette: { A: "#b0b0b0", R: "#c94444" },
+      rows: [".AAA.", "AAAAA", "ARRRA", "ARRRA", "ARRRA", "AAAAA", ".AAA."],
+    },
+  ];
+
+  const FISH_WIDTH = FISH_DIMS.width;
+  const FISH_HEIGHT = FISH_DIMS.height;
   const FISH_SPEED = 150; // px/sec
-  const FISH_Y = HEIGHT - 70;
+  const FISH_Y = HEIGHT - 80;
 
   const BASE_SCROLL_SPEED = 80; // px/sec
   const MAX_SCROLL_SPEED = 260;
   const SCROLL_ACCEL = 2; // px/sec added per second survived
 
-  const BASE_SPAWN_INTERVAL = 1100; // ms
-  const MIN_SPAWN_INTERVAL = 500;
+  const BASE_SPAWN_INTERVAL = 1200; // ms
+  const MIN_SPAWN_INTERVAL = 550;
 
   const BEST_SCORE_KEY = "fishGameBestScore";
+
+  // Obstacle spawn weights (higher = more common)
+  const OBSTACLE_WEIGHTS = [
+    { type: "log", weight: 30 },
+    { type: "debris", weight: 20 },
+    { type: "net", weight: 15 },
+    { type: "bird", weight: 15 },
+    { type: "boat", weight: 12 },
+    { type: "weir", weight: 8 },
+  ];
 
   let state = "playing"; // "playing" | "gameover"
   let fishX = WIDTH / 2;
@@ -58,11 +186,89 @@
     gameOverScreen.classList.add("hidden");
   }
 
-  function spawnObstacle() {
+  function pickObstacleType() {
+    const total = OBSTACLE_WEIGHTS.reduce((sum, o) => sum + o.weight, 0);
+    let r = Math.random() * total;
+    for (const o of OBSTACLE_WEIGHTS) {
+      if (r < o.weight) return o.type;
+      r -= o.weight;
+    }
+    return "log";
+  }
+
+  // A "gap" obstacle spans from one bank partway across the river, leaving
+  // a gap on the other side (used for the weir and the fishing net).
+  function makeGapObstacle(type, widthFrac, height) {
+    const width = RIVER_WIDTH * widthFrac;
+    const gapLeft = Math.random() < 0.5; // true = gap is on the left bank
+    const x = gapLeft ? RIVER_RIGHT - width : RIVER_LEFT;
+    return { type, x, y: -height, width, height, gapLeft };
+  }
+
+  function makeLog() {
     const width = 28 + Math.random() * 34;
     const height = 12;
-    const x = RIVER_LEFT + Math.random() * (RIVER_RIGHT - RIVER_LEFT - width);
-    obstacles.push({ x, y: -height, width, height });
+    const x = RIVER_LEFT + Math.random() * (RIVER_WIDTH - width);
+    return { type: "log", x, y: -height, width, height };
+  }
+
+  function makeWeir() {
+    return makeGapObstacle("weir", 0.52, 24);
+  }
+
+  function makeNet() {
+    return makeGapObstacle("net", 0.62, 10);
+  }
+
+  function makeBird() {
+    const width = BIRD_DIMS.width;
+    const height = BIRD_DIMS.height;
+    const baseX = RIVER_LEFT + Math.random() * (RIVER_WIDTH - width);
+    return { type: "bird", x: baseX, baseX, y: -height, width, height, phase: Math.random() * Math.PI * 2 };
+  }
+
+  function makeDebris() {
+    const variant = DEBRIS_VARIANTS[Math.floor(Math.random() * DEBRIS_VARIANTS.length)];
+    const dims = spriteDims(variant.rows, DEBRIS_PIXEL);
+    const x = RIVER_LEFT + Math.random() * (RIVER_WIDTH - dims.width);
+    return {
+      type: "debris",
+      x,
+      y: -dims.height,
+      width: dims.width,
+      height: dims.height,
+      speedMult: 1.3,
+      variant,
+    };
+  }
+
+  function makeBoat() {
+    const width = BOAT_DIMS.width;
+    const height = BOAT_DIMS.height;
+    const x = RIVER_LEFT + Math.random() * (RIVER_WIDTH - width);
+    return { type: "boat", x, y: -height, width, height, speedMult: 1.6 };
+  }
+
+  function spawnObstacle() {
+    switch (pickObstacleType()) {
+      case "weir":
+        obstacles.push(makeWeir());
+        break;
+      case "net":
+        obstacles.push(makeNet());
+        break;
+      case "bird":
+        obstacles.push(makeBird());
+        break;
+      case "debris":
+        obstacles.push(makeDebris());
+        break;
+      case "boat":
+        obstacles.push(makeBoat());
+        break;
+      default:
+        obstacles.push(makeLog());
+    }
   }
 
   function rectsOverlap(a, b) {
@@ -106,22 +312,29 @@
       spawnTimer = interval;
     }
 
-    // Move obstacles, remove offscreen
-    const fishRect = {
-      x: fishX - FISH_WIDTH / 2,
-      y: FISH_Y - FISH_HEIGHT / 2,
-      width: FISH_WIDTH,
-      height: FISH_HEIGHT,
-    };
-
-    for (const obstacle of obstacles) {
-      obstacle.y += scrollSpeed * dt;
+    // Move obstacles
+    for (const o of obstacles) {
+      const speedMult = o.speedMult || 1;
+      o.y += scrollSpeed * speedMult * dt;
+      if (o.type === "bird") {
+        o.phase += dt * 2.2;
+        o.x = Math.max(
+          RIVER_LEFT,
+          Math.min(RIVER_RIGHT - o.width, o.baseX + Math.sin(o.phase) * 40)
+        );
+      }
     }
     obstacles = obstacles.filter((o) => o.y < HEIGHT + o.height);
 
-    // Collision check
-    for (const obstacle of obstacles) {
-      if (rectsOverlap(fishRect, obstacle)) {
+    // Collision check (small inset for a fairer hitbox than the sprite art)
+    const fishRect = {
+      x: fishX - FISH_WIDTH / 2 + 2,
+      y: FISH_Y - FISH_HEIGHT / 2 + 2,
+      width: FISH_WIDTH - 4,
+      height: FISH_HEIGHT - 4,
+    };
+    for (const o of obstacles) {
+      if (rectsOverlap(fishRect, o)) {
         endGame();
         break;
       }
@@ -148,7 +361,7 @@
     ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
     ctx.fillStyle = "#1b5e7d";
-    ctx.fillRect(RIVER_LEFT, 0, RIVER_RIGHT - RIVER_LEFT, HEIGHT);
+    ctx.fillRect(RIVER_LEFT, 0, RIVER_WIDTH, HEIGHT);
 
     ctx.strokeStyle = "rgba(255,255,255,0.25)";
     ctx.lineWidth = 2;
@@ -164,34 +377,85 @@
     }
   }
 
+  function drawLog(o) {
+    ctx.fillStyle = "#6b4226";
+    ctx.fillRect(o.x, o.y, o.width, o.height);
+    ctx.fillStyle = "#4a2c18";
+    ctx.fillRect(o.x, o.y, o.width, 3);
+    ctx.fillRect(o.x, o.y + o.height - 3, o.width, 3);
+    ctx.fillStyle = "#8a5a34";
+    ctx.beginPath();
+    ctx.arc(o.x + 5, o.y + o.height / 2, 4, 0, Math.PI * 2);
+    ctx.arc(o.x + o.width - 5, o.y + o.height / 2, 4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  function drawWeir(o) {
+    ctx.fillStyle = "#8a8a86";
+    ctx.fillRect(o.x, o.y, o.width, o.height);
+    ctx.fillStyle = "#6a6a66";
+    for (let px = o.x; px < o.x + o.width; px += 10) {
+      ctx.fillRect(px, o.y, 3, o.height);
+    }
+    ctx.fillStyle = "rgba(255,255,255,0.65)";
+    for (let px = o.x; px < o.x + o.width; px += 8) {
+      ctx.fillRect(px, o.y + o.height - 5, 4, 3);
+    }
+    ctx.fillStyle = "#4a4a46";
+    ctx.fillRect(o.x, o.y, o.width, 3);
+  }
+
+  function drawNet(o) {
+    ctx.fillStyle = "rgba(210,210,200,0.55)";
+    ctx.fillRect(o.x, o.y, o.width, o.height);
+    ctx.strokeStyle = "rgba(60,60,50,0.8)";
+    ctx.lineWidth = 1;
+    for (let px = o.x; px < o.x + o.width; px += 6) {
+      ctx.beginPath();
+      ctx.moveTo(px, o.y);
+      ctx.lineTo(px, o.y + o.height);
+      ctx.stroke();
+    }
+    ctx.fillStyle = "#d94f4f";
+    ctx.beginPath();
+    ctx.arc(o.x + 3, o.y + o.height / 2, 3, 0, Math.PI * 2);
+    ctx.arc(o.x + o.width - 3, o.y + o.height / 2, 3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
   function drawObstacles() {
     for (const o of obstacles) {
-      ctx.fillStyle = "#6b4226";
-      ctx.fillRect(o.x, o.y, o.width, o.height);
-      ctx.fillStyle = "#4a2c18";
-      ctx.fillRect(o.x, o.y, o.width, 3);
-      ctx.fillRect(o.x, o.y + o.height - 3, o.width, 3);
+      switch (o.type) {
+        case "log":
+          drawLog(o);
+          break;
+        case "weir":
+          drawWeir(o);
+          break;
+        case "net":
+          drawNet(o);
+          break;
+        case "bird":
+          drawSprite(BIRD_SPRITE, BIRD_PALETTE, o.x, o.y, BIRD_PIXEL);
+          break;
+        case "boat":
+          drawSprite(BOAT_SPRITE, BOAT_PALETTE, o.x, o.y, BOAT_PIXEL);
+          break;
+        case "debris":
+          drawSprite(o.variant.rows, o.variant.palette, o.x, o.y, DEBRIS_PIXEL);
+          break;
+      }
     }
   }
 
   function drawFish() {
-    const x = fishX;
-    const y = FISH_Y;
-
-    ctx.fillStyle = "#ff8c3d";
-    ctx.fillRect(x - FISH_WIDTH / 2 + 4, y - FISH_HEIGHT / 2, FISH_WIDTH - 4, FISH_HEIGHT);
-
-    // Tail
-    ctx.beginPath();
-    ctx.moveTo(x - FISH_WIDTH / 2 + 4, y - FISH_HEIGHT / 2);
-    ctx.lineTo(x - FISH_WIDTH / 2 - 5, y);
-    ctx.lineTo(x - FISH_WIDTH / 2 + 4, y + FISH_HEIGHT / 2);
-    ctx.closePath();
-    ctx.fill();
-
-    // Eye
-    ctx.fillStyle = "#1b1b1b";
-    ctx.fillRect(x + FISH_WIDTH / 2 - 7, y - 4, 3, 3);
+    drawSprite(
+      FISH_SPRITE,
+      FISH_PALETTE,
+      fishX - FISH_WIDTH / 2,
+      FISH_Y - FISH_HEIGHT / 2,
+      FISH_PIXEL
+    );
   }
 
   function draw() {
