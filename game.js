@@ -623,12 +623,23 @@
       // ends at sea, not in a floodplain like the other two species.
       ending: { waterColor: "#182c40" },
       vegetationKinds: [],
+      // The final river stretch (after the set-piece, before the ending
+      // scene) runs 20s here instead of the usual 10s, giving the doubled
+      // eddy weight below more room to actually show up.
+      finalRiverDuration: 20,
       obstacleTypes: [
         { type: "turbineGrate", weight: 40, make: () => makeSolidObstacle("turbineGrate", 28, 58, 14), draw: drawTurbineGrate },
         { type: "sluiceGate", weight: 35, make: () => makeGapObstacle("sluiceGate", 0.5, 22), draw: drawSluiceGate },
         {
+          // 4x the original weight (was 25, same as turbineGrate's and
+          // sluiceGate's own unchanged weights) so a lot more of these
+          // fast-moving hydraulic hazards come down the channel, without
+          // reducing how often the other two show up. Doubled again on
+          // top of that during the final river stretch (after the
+          // set-piece exits), via finalSectionWeightMultiplier.
           type: "spillwayEddy",
-          weight: 25,
+          weight: 100,
+          finalSectionWeightMultiplier: 2,
           make: () =>
             makeFastObstacle("spillwayEddy", spriteDims(EDDY_SPRITE, 2.4).width, spriteDims(EDDY_SPRITE, 2.4).height, 1.7),
           draw: (o) => drawSprite(EDDY_SPRITE, EDDY_PALETTE, o.x, o.y, 2.4, EDDY_OUTLINE),
@@ -680,9 +691,11 @@
   const SETPIECE_WAVELENGTH = 300; // px of scroll distance per full S-curve
   const SETPIECE_STEP_SPACING = 90; // px between decorative flow-highlight lines
 
-  // Level ends with the river opening into a floodplain: 10s river, 10s
-  // set-piece, 10s river, then a swim-in transition before the ending.
-  const LEVEL_END_TIME = SETPIECE_START_TIME + SETPIECE_DURATION + 10; // 30s
+  // Level ends with the river opening into the ending scene: 10s river,
+  // 10s set-piece, then a final river stretch (length varies per level —
+  // see level.finalRiverDuration, default 10s) before the swim-in
+  // transition. Recomputed by startLevel() since it's level-dependent.
+  let LEVEL_END_TIME = 0;
   const FLOODPLAIN_FISH_COUNT = 7;
   const ENTER_FLOODPLAIN_DURATION = 2.5; // seconds — banks recede, fish glides to center
 
@@ -741,6 +754,12 @@
   let pickupSpawnTimer = 0;
   let pickupIntroShown = false;
 
+  // Small "Health increased!" labels that pop up near a just-collected
+  // pickup and float upward while fading out.
+  let floatingTexts = [];
+  const FLOATING_TEXT_DURATION = 1.1;
+  const FLOATING_TEXT_RISE = 18; // px over the label's lifetime
+
   let floodplainFish = [];
   let enterTimer = 0;
 
@@ -756,6 +775,7 @@
     level = LEVELS[n - 1];
     FISH_WIDTH = spriteDims(level.fish.sprite, level.fish.pixel).width;
     FISH_HEIGHT = spriteDims(level.fish.sprite, level.fish.pixel).height;
+    LEVEL_END_TIME = SETPIECE_START_TIME + SETPIECE_DURATION + (level.finalRiverDuration || 10);
 
     fishX = WIDTH / 2;
     obstacles = [];
@@ -776,6 +796,7 @@
     pickups = [];
     pickupSpawnTimer = 0;
     pickupIntroShown = false;
+    floatingTexts = [];
     floodplainFish = [];
     enterTimer = 0;
     scatterInitialVegetation();
@@ -882,19 +903,27 @@
     bannerTimer = duration;
   }
 
-  function pickObstacleType() {
+  // `finalSection` is true once the level's final river stretch (after the
+  // set-piece has fully exited) begins — some obstacle types boost their
+  // weight there via `finalSectionWeightMultiplier` (e.g. level 3's
+  // spillwayEddy) without changing how often they show up earlier in the
+  // level.
+  function pickObstacleType(finalSection) {
     const types = level.obstacleTypes;
-    const total = types.reduce((sum, o) => sum + o.weight, 0);
+    const weights = types.map(
+      (o) => o.weight * (finalSection && o.finalSectionWeightMultiplier ? o.finalSectionWeightMultiplier : 1)
+    );
+    const total = weights.reduce((sum, w) => sum + w, 0);
     let r = Math.random() * total;
-    for (const o of types) {
-      if (r < o.weight) return o;
-      r -= o.weight;
+    for (let i = 0; i < types.length; i++) {
+      if (r < weights[i]) return types[i];
+      r -= weights[i];
     }
     return types[0];
   }
 
-  function spawnObstacle() {
-    obstacles.push(pickObstacleType().make());
+  function spawnObstacle(finalSection) {
+    obstacles.push(pickObstacleType(finalSection).make());
   }
 
   // ---------------------------------------------------------------------
@@ -964,6 +993,11 @@
     vegetation = vegetation.filter((v) => v.y < HEIGHT + v.height);
   }
 
+  function updateFloatingTexts(dt) {
+    for (const f of floatingTexts) f.age += dt;
+    floatingTexts = floatingTexts.filter((f) => f.age < FLOATING_TEXT_DURATION);
+  }
+
   function rectsOverlap(a, b) {
     return (
       a.x < b.x + b.width &&
@@ -977,11 +1011,11 @@
   // obstacles still need to keep moving/colliding/culling so they scroll
   // off screen naturally instead of vanishing the instant it starts, but
   // no new ones should spawn while it's active.
-  function updateObstacles(dt, allowSpawn) {
+  function updateObstacles(dt, allowSpawn, finalSection) {
     if (allowSpawn !== false) {
       spawnTimer -= dt * 1000;
       if (spawnTimer <= 0) {
-        spawnObstacle();
+        spawnObstacle(finalSection);
         const interval = Math.max(MIN_SPAWN_INTERVAL, BASE_SPAWN_INTERVAL - elapsed * 15);
         spawnTimer = interval;
       }
@@ -1082,6 +1116,7 @@
         health = Math.min(MAX_HEALTH, health + level.setpiece.pickup.heal);
         bonusScore += level.setpiece.pickup.score;
         updateHealthDisplay();
+        floatingTexts.push({ x: p.x + p.width, y: p.y, text: "+ health", age: 0 });
         return false;
       }
       return p.y < HEIGHT + p.height;
@@ -1150,6 +1185,7 @@
     // Runs during both the open river and the set-piece — banks are
     // visible (and the same width) in both.
     updateVegetation(dt);
+    updateFloatingTexts(dt);
 
     if (bannerTimer > 0) {
       bannerTimer -= dt;
@@ -1206,7 +1242,11 @@
         pickups = [];
       }
     } else {
-      updateObstacles(dt);
+      // Final river section = the open river after the set-piece has
+      // fully exited (elapsed already past SETPIECE_START_TIME +
+      // SETPIECE_DURATION at that point, since setpieceActive only stays
+      // true up to and through the exit sweep).
+      updateObstacles(dt, true, elapsed >= SETPIECE_START_TIME + SETPIECE_DURATION);
     }
 
     // Score = distance survived + bonuses (e.g. eaten pickups)
@@ -1364,6 +1404,68 @@
     drawSprite(rows, level.fish.palette, x, y, pixelSize, level.fish.outline, undefined, offsetFn);
   }
 
+  // Tiny 3x5 pixel font (uppercase only — lookups upper-case the char) for
+  // in-canvas popup labels. Drawn with fillRect on rounded coordinates
+  // instead of ctx.fillText, so it stays crisp under the game's
+  // "image-rendering: pixelated" scaling rather than looking blurry like
+  // anti-aliased canvas text does once blown up.
+  const PIXEL_FONT = {
+    "+": ["...", ".#.", "###", ".#.", "..."],
+    " ": ["...", "...", "...", "...", "..."],
+    H: ["#.#", "#.#", "###", "#.#", "#.#"],
+    E: ["###", "#..", "##.", "#..", "###"],
+    A: [".#.", "#.#", "###", "#.#", "#.#"],
+    L: ["#..", "#..", "#..", "#..", "###"],
+    T: ["###", ".#.", ".#.", ".#.", ".#."],
+  };
+  const PIXEL_FONT_COLS = 3;
+  const PIXEL_FONT_ROWS = 5;
+
+  function pixelTextWidth(text, pixelSize) {
+    return text.length * PIXEL_FONT_COLS * pixelSize + (text.length - 1) * pixelSize;
+  }
+
+  // (x, y) is the top-left corner.
+  function drawPixelText(text, x, y, pixelSize, color) {
+    x = Math.round(x);
+    y = Math.round(y);
+    ctx.fillStyle = color;
+    let cx = x;
+    for (const ch of text) {
+      const glyph = PIXEL_FONT[ch.toUpperCase()];
+      if (glyph) {
+        for (let row = 0; row < PIXEL_FONT_ROWS; row++) {
+          for (let col = 0; col < PIXEL_FONT_COLS; col++) {
+            if (glyph[row][col] === "#") {
+              ctx.fillRect(cx + col * pixelSize, y + row * pixelSize, pixelSize, pixelSize);
+            }
+          }
+        }
+      }
+      cx += PIXEL_FONT_COLS * pixelSize + pixelSize;
+    }
+  }
+
+  // Floats each label upward and fades it out over its short lifetime. A
+  // solid backing tag keeps it legible over any background color.
+  function drawFloatingTexts() {
+    const pixelSize = 1;
+    for (const f of floatingTexts) {
+      const t = f.age / FLOATING_TEXT_DURATION;
+      const alpha = 1 - t;
+      const y = f.y - FLOATING_TEXT_RISE * t;
+      const textW = pixelTextWidth(f.text, pixelSize);
+      const textH = PIXEL_FONT_ROWS * pixelSize;
+      const pad = 2;
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = "rgba(20, 30, 20, 0.75)";
+      ctx.fillRect(Math.round(f.x - pad), Math.round(y - pad), textW + pad * 2, textH + pad * 2);
+      drawPixelText(f.text, f.x, y, pixelSize, "#9ef07a");
+      ctx.restore();
+    }
+  }
+
   function drawFish() {
     // Flicker while invulnerable after taking a hit, so a hit is felt
     if (hitCooldown > 0 && Math.floor(hitCooldown * 10) % 2 === 0) return;
@@ -1404,6 +1506,9 @@
       drawPickups();
     }
     drawFish();
+    if (state !== "win" && state !== "entering") {
+      drawFloatingTexts();
+    }
   }
 
   let lastTime = performance.now();
