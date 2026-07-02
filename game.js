@@ -5,11 +5,16 @@
 
   const scoreEl = document.getElementById("score");
   const bestEl = document.getElementById("best");
-  const healthEl = document.getElementById("health");
+  const healthBarFillEl = document.getElementById("health-bar-fill");
   const bannerEl = document.getElementById("banner");
+  const startScreenEl = document.getElementById("start-screen");
+  const startButton = document.getElementById("start-button");
   const gameOverScreen = document.getElementById("game-over-screen");
   const finalScoreEl = document.getElementById("final-score");
   const restartButton = document.getElementById("restart-button");
+  const winScreenEl = document.getElementById("win-screen");
+  const winScoreEl = document.getElementById("win-score");
+  const winRestartButton = document.getElementById("win-restart-button");
   const touchLeft = document.getElementById("touch-left");
   const touchRight = document.getElementById("touch-right");
 
@@ -106,7 +111,8 @@
   ];
   const FISH_DIMS = spriteDims(FISH_SPRITE, FISH_PIXEL);
 
-  // Predator bird, viewed from above: white body, dark eyes, swept wingtips, tail fan
+  // Predator bird, viewed from above in a classic "flying M" silhouette:
+  // beak, rounded head, wings swept back to pointed tips, tail fan.
   const BIRD_PIXEL = 2.4;
   const BIRD_OUTLINE = "#8a94a0";
   const BIRD_PALETTE = {
@@ -115,20 +121,21 @@
     E: "#2a2a28", // eye
     S: "#e2e6ea", // tail shading
     W: "#f2f2f0", // wing
-    G: "#cfd8e0", // wing shading
   };
   const BIRD_SPRITE = [
-    ".....Y.....",
-    "...EHHHE...",
-    "GW.HHHHH.WG",
-    "WWG.HHH.GWW",
-    ".GW..H..WG.",
-    "...SHSHS...",
-    "....SSS....",
+    "......Y......",
+    ".....EHE.....",
+    "....HHHHH....",
+    "...WHHHHHW...",
+    "..WWHHHHHWW..",
+    ".WWW.HHH.WWW.",
+    "WWW...H...WWW",
+    "....SSSSS....",
   ];
   const BIRD_DIMS = spriteDims(BIRD_SPRITE, BIRD_PIXEL);
 
-  // Turtle, viewed from above
+  // Turtle, viewed from above: small head, round oval shell with pattern,
+  // two pairs of legs poking out the sides, small tail.
   const TURTLE_PIXEL = 2.4;
   const TURTLE_OUTLINE = "#4f6b52";
   const TURTLE_PALETTE = {
@@ -139,20 +146,40 @@
     P: "#5f8f63", // shell pattern
   };
   const TURTLE_SPRITE = [
+    "....H....",
     "...HHH...",
     "..EHHHE..",
-    ".KKSSSKK.",
-    "KKSPSPSKK",
-    "KSSPSPSSK",
-    "KSPSSSPSK",
-    "KSSPSPSSK",
-    "KSPSSSPSK",
     ".KSSSSSK.",
-    "..KK.KK..",
-    "...K.K...",
-    "....K....",
+    "KKSPSPSKK",
+    ".SSPSPSS.",
+    "KKSPSPSKK",
+    ".KSSSSSK.",
+    "..SSSSS..",
+    "...SSS...",
+    "....S....",
   ];
   const TURTLE_DIMS = spriteDims(TURTLE_SPRITE, TURTLE_PIXEL);
+
+  // Crab, viewed from above — a fish-ladder pickup: eat it to heal and score
+  const CRAB_PIXEL = 2.2;
+  const CRAB_OUTLINE = "#8a4a30";
+  const CRAB_PALETTE = {
+    C: "#d97350", // claws
+    B: "#eb9a78", // body
+    E: "#2a1a12", // eye
+    L: "#c96a45", // legs
+  };
+  const CRAB_SPRITE = [
+    "C.........C",
+    ".C.......C.",
+    "..BBBBBBB..",
+    "L.BEBBBEB.L",
+    ".LBBBBBBBL.",
+    "..BBBBBBB..",
+    ".LBBBBBBBL.",
+    "...BBBBB...",
+  ];
+  const CRAB_DIMS = spriteDims(CRAB_SPRITE, CRAB_PIXEL);
 
   const FISH_WIDTH = FISH_DIMS.width;
   const FISH_HEIGHT = FISH_DIMS.height;
@@ -176,19 +203,36 @@
     { type: "weir", weight: 15 },
   ];
 
+  // Health: a shared resource across the whole run. Normal obstacles and
+  // fish-ladder walls both damage it (rather than obstacles being an
+  // instant death) — running out of health is what ends the run.
+  const MAX_HEALTH = 5;
+  const HIT_COOLDOWN = 0.6; // seconds of invulnerability after taking damage
+  const OBSTACLE_DAMAGE = 2;
+  const LADDER_WALL_DAMAGE = 1;
+
   // Fish ladder section: a curvy pool-and-weir channel with no hard
-  // obstacles. Straying outside the channel costs health instead of
-  // ending the run instantly.
+  // obstacles, just walls that damage on contact.
   const LADDER_START_TIME = 10; // seconds survived
-  const LADDER_DURATION = 7; // seconds
-  const LADDER_MAX_HEALTH = 5;
-  const LADDER_HIT_COOLDOWN = 0.6; // seconds of grace after taking damage
+  const LADDER_DURATION = 10; // seconds
   const LADDER_CHANNEL_WIDTH = RIVER_WIDTH * 0.55;
   const LADDER_AMPLITUDE = (RIVER_WIDTH - LADDER_CHANNEL_WIDTH) / 2;
   const LADDER_WAVELENGTH = 300; // px of scroll distance per full S-curve
   const LADDER_STEP_SPACING = 90; // px between pool-and-weir step lines
 
-  let state = "playing"; // "playing" | "gameover"
+  // Level 1 ends with the river opening into a floodplain: 10s river, 10s
+  // fish ladder, 10s river, then a swim-in transition into the floodplain
+  // before the win screen appears.
+  const FLOODPLAIN_START_TIME = LADDER_START_TIME + LADDER_DURATION + 10; // 30s
+  const FLOODPLAIN_FISH_COUNT = 7;
+  const ENTER_FLOODPLAIN_DURATION = 2.5; // seconds — banks recede, fish glides to center
+
+  const CRAB_FIRST_SPAWN_DELAY = 2500; // ms — let the entry banner clear first
+  const CRAB_SPAWN_INTERVAL = 1800; // ms
+  const CRAB_HEAL_AMOUNT = 1;
+  const CRAB_SCORE_BONUS = 20;
+
+  let state = "start"; // "start" | "playing" | "entering" | "gameover" | "win"
   let fishX = WIDTH / 2;
   let moveLeft = false;
   let moveRight = false;
@@ -202,11 +246,20 @@
 
   let waterLineOffset = 0;
 
+  let health = MAX_HEALTH;
+  let hitCooldown = 0;
+
   let ladderActive = false;
-  let ladderHealth = LADDER_MAX_HEALTH;
   let ladderDistance = 0;
-  let ladderHitCooldown = 0;
   let bannerTimer = 0;
+  let bonusScore = 0;
+
+  let crabs = [];
+  let crabSpawnTimer = 0;
+  let crabIntroShown = false;
+
+  let floodplainFish = [];
+  let enterTimer = 0;
 
   bestEl.textContent = `Best: ${bestScore}`;
 
@@ -218,19 +271,62 @@
     elapsed = 0;
     score = 0;
     waterLineOffset = 0;
+    health = MAX_HEALTH;
+    hitCooldown = 0;
     ladderActive = false;
-    ladderHealth = LADDER_MAX_HEALTH;
     ladderDistance = 0;
-    ladderHitCooldown = 0;
     bannerTimer = 0;
-    healthEl.classList.add("hidden");
+    bonusScore = 0;
+    crabs = [];
+    crabSpawnTimer = 0;
+    crabIntroShown = false;
+    floodplainFish = [];
+    enterTimer = 0;
     bannerEl.classList.add("hidden");
     state = "playing";
+    startScreenEl.classList.add("hidden");
     gameOverScreen.classList.add("hidden");
+    winScreenEl.classList.add("hidden");
+    updateHealthDisplay();
+  }
+
+  // The channel opens up and the fish glides to a stop among the other
+  // fish before the win screen appears — see updateEntering()/draw().
+  function enterFloodplain() {
+    state = "entering";
+    enterTimer = 0;
+    obstacles = [];
+    crabs = [];
+    floodplainFish = Array.from({ length: FLOODPLAIN_FISH_COUNT }, () => ({
+      x: 16 + Math.random() * (WIDTH - 32),
+      y: 30 + Math.random() * (HEIGHT - 100),
+      phase: Math.random() * Math.PI * 2,
+    }));
+  }
+
+  function winGame() {
+    state = "win";
+    if (score > bestScore) {
+      bestScore = score;
+      localStorage.setItem(BEST_SCORE_KEY, String(bestScore));
+      bestEl.textContent = `Best: ${bestScore}`;
+    }
+    winScoreEl.textContent = `Score: ${score}`;
+    winScreenEl.classList.remove("hidden");
   }
 
   function updateHealthDisplay() {
-    healthEl.textContent = `Health: ${ladderHealth}`;
+    const pct = Math.max(0, (health / MAX_HEALTH) * 100);
+    healthBarFillEl.style.width = `${pct}%`;
+    healthBarFillEl.style.background =
+      health >= 4 ? "#9ecfa0" : health >= 2 ? "#f0d78c" : "#e2726f";
+  }
+
+  function takeDamage(amount) {
+    health -= amount;
+    hitCooldown = HIT_COOLDOWN;
+    updateHealthDisplay();
+    if (health <= 0) endGame();
   }
 
   function showBanner(text, duration) {
@@ -341,10 +437,12 @@
       width: FISH_WIDTH - 4,
       height: FISH_HEIGHT - 4,
     };
-    for (const o of obstacles) {
-      if (rectsOverlap(fishRect, o)) {
-        endGame();
-        break;
+    if (hitCooldown <= 0) {
+      for (const o of obstacles) {
+        if (rectsOverlap(fishRect, o)) {
+          takeDamage(OBSTACLE_DAMAGE);
+          break;
+        }
       }
     }
   }
@@ -358,27 +456,88 @@
     return WIDTH / 2 + Math.sin(phase) * LADDER_AMPLITUDE;
   }
 
+  // Crabs spawn within the channel's safe inner span at their spawn row,
+  // so they're reachable when they scroll down (the channel may have
+  // curved by the time they reach the fish, same as any other obstacle).
+  function spawnCrab() {
+    const dims = CRAB_DIMS;
+    const spawnWorldPos = ladderDistance + dims.height;
+    const channelCenter = ladderChannelCenter(spawnWorldPos);
+    const halfInner = Math.max(0, LADDER_CHANNEL_WIDTH / 2 - dims.width / 2 - 4);
+    const centerX = channelCenter + (Math.random() * 2 - 1) * halfInner;
+    crabs.push({
+      x: centerX - dims.width / 2,
+      y: -dims.height,
+      width: dims.width,
+      height: dims.height,
+    });
+    if (!crabIntroShown) {
+      crabIntroShown = true;
+      showBanner("Eat the crabs!", 2);
+    }
+  }
+
   function updateLadder(dt) {
     ladderDistance += scrollSpeed * dt;
-    if (ladderHitCooldown > 0) ladderHitCooldown -= dt;
 
+    // Spawn crabs
+    crabSpawnTimer -= dt * 1000;
+    if (crabSpawnTimer <= 0) {
+      spawnCrab();
+      crabSpawnTimer = CRAB_SPAWN_INTERVAL;
+    }
+
+    const fishRect = {
+      x: fishX - FISH_WIDTH / 2 + 2,
+      y: FISH_Y - FISH_HEIGHT / 2 + 2,
+      width: FISH_WIDTH - 4,
+      height: FISH_HEIGHT - 4,
+    };
+
+    // Move crabs, eat on contact (heals + scores instead of damaging)
+    for (const crab of crabs) {
+      crab.y += scrollSpeed * dt;
+    }
+    crabs = crabs.filter((crab) => {
+      if (rectsOverlap(fishRect, crab)) {
+        health = Math.min(MAX_HEALTH, health + CRAB_HEAL_AMOUNT);
+        bonusScore += CRAB_SCORE_BONUS;
+        updateHealthDisplay();
+        return false;
+      }
+      return crab.y < HEIGHT + crab.height;
+    });
+
+    // Wall collision (damage)
     const fishWorldPos = ladderDistance - FISH_Y;
     const center = ladderChannelCenter(fishWorldPos);
     const wallLeft = center - LADDER_CHANNEL_WIDTH / 2;
     const wallRight = center + LADDER_CHANNEL_WIDTH / 2;
 
-    const fishLeft = fishX - FISH_WIDTH / 2 + 2;
-    const fishRight = fishX + FISH_WIDTH / 2 - 2;
-
-    if ((fishLeft < wallLeft || fishRight > wallRight) && ladderHitCooldown <= 0) {
-      ladderHealth -= 1;
-      ladderHitCooldown = LADDER_HIT_COOLDOWN;
-      updateHealthDisplay();
-      if (ladderHealth <= 0) endGame();
+    if (
+      (fishRect.x < wallLeft || fishRect.x + fishRect.width > wallRight) &&
+      hitCooldown <= 0
+    ) {
+      takeDamage(LADDER_WALL_DAMAGE);
     }
   }
 
+  // Banks recede, the fish eases to center and the river current slows to
+  // a stop, then the win screen appears — run during the "entering" state.
+  function updateEntering(dt) {
+    enterTimer += dt;
+    const t = Math.min(1, enterTimer / ENTER_FLOODPLAIN_DURATION);
+    fishX += (WIDTH / 2 - fishX) * Math.min(1, dt * 3);
+    scrollSpeed = BASE_SCROLL_SPEED * (1 - t);
+    waterLineOffset = (waterLineOffset + scrollSpeed * dt) % 24;
+    if (t >= 1) winGame();
+  }
+
   function update(dt) {
+    if (state === "entering") {
+      updateEntering(dt);
+      return;
+    }
     if (state !== "playing") return;
 
     // Movement
@@ -404,6 +563,16 @@
       if (bannerTimer <= 0) bannerEl.classList.add("hidden");
     }
 
+    if (hitCooldown > 0) hitCooldown -= dt;
+
+    // Reached the floodplain — level complete
+    if (elapsed >= FLOODPLAIN_START_TIME) {
+      score = Math.floor(elapsed * 10) + bonusScore;
+      scoreEl.textContent = `Score: ${score}`;
+      enterFloodplain();
+      return;
+    }
+
     // Enter/exit the fish ladder section
     if (
       !ladderActive &&
@@ -411,16 +580,16 @@
       elapsed < LADDER_START_TIME + LADDER_DURATION
     ) {
       ladderActive = true;
-      ladderHealth = LADDER_MAX_HEALTH;
       ladderDistance = 0;
-      ladderHitCooldown = 0;
       obstacles = [];
-      healthEl.classList.remove("hidden");
+      crabs = [];
+      crabSpawnTimer = CRAB_FIRST_SPAWN_DELAY;
+      crabIntroShown = false;
       updateHealthDisplay();
       showBanner("Fish ladder ahead — stay in the channel!", 2.2);
     } else if (ladderActive && elapsed >= LADDER_START_TIME + LADDER_DURATION) {
       ladderActive = false;
-      healthEl.classList.add("hidden");
+      crabs = [];
       spawnTimer = 400;
       showBanner("Back to the river", 1.8);
     }
@@ -431,8 +600,8 @@
       updateObstacles(dt);
     }
 
-    // Score = distance survived
-    score = Math.floor(elapsed * 10);
+    // Score = distance survived + bonuses (e.g. eaten crabs)
+    score = Math.floor(elapsed * 10) + bonusScore;
     scoreEl.textContent = `Score: ${score}`;
   }
 
@@ -447,25 +616,52 @@
     gameOverScreen.classList.remove("hidden");
   }
 
-  function drawRiver() {
+  // Draws the water scene with banks at the given width — used for the
+  // normal river (bankWidth = BANK_WIDTH), the swim-in transition
+  // (bankWidth easing toward 0), and the open floodplain (bankWidth = 0).
+  function drawRiverScene(bankWidth) {
+    const left = bankWidth;
+    const right = WIDTH - bankWidth;
+    const width = right - left;
+
     ctx.fillStyle = "#bfe3b4";
     ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
     ctx.fillStyle = "#a9d8e6";
-    ctx.fillRect(RIVER_LEFT, 0, RIVER_WIDTH, HEIGHT);
+    ctx.fillRect(left, 0, width, HEIGHT);
 
     ctx.strokeStyle = "rgba(255,255,255,0.4)";
     ctx.lineWidth = 2;
     for (let y = -24 + waterLineOffset; y < HEIGHT; y += 24) {
       ctx.beginPath();
-      ctx.moveTo(RIVER_LEFT + 6, y);
-      ctx.lineTo(RIVER_LEFT + 16, y);
+      ctx.moveTo(left + 6, y);
+      ctx.lineTo(left + 16, y);
       ctx.stroke();
       ctx.beginPath();
-      ctx.moveTo(RIVER_RIGHT - 16, y + 12);
-      ctx.lineTo(RIVER_RIGHT - 6, y + 12);
+      ctx.moveTo(right - 16, y + 12);
+      ctx.lineTo(right - 6, y + 12);
       ctx.stroke();
     }
+  }
+
+  // Uses the wall clock (not `elapsed`) so fish keep bobbing even though
+  // `elapsed`/`update()` are frozen once the run reaches the win state.
+  // `alpha` fades the school in as the floodplain opens up.
+  function drawFloodplainFish(alpha) {
+    const nowSeconds = performance.now() / 1000;
+    ctx.globalAlpha = alpha;
+    for (const fish of floodplainFish) {
+      const bob = Math.sin((nowSeconds + fish.phase) * 1.5) * 4;
+      drawSprite(
+        FISH_SPRITE,
+        FISH_PALETTE,
+        fish.x - FISH_WIDTH / 2,
+        fish.y - FISH_HEIGHT / 2 + bob,
+        FISH_PIXEL,
+        FISH_OUTLINE
+      );
+    }
+    ctx.globalAlpha = 1;
   }
 
   function drawFishLadder() {
@@ -542,7 +738,15 @@
     }
   }
 
+  function drawCrabs() {
+    for (const crab of crabs) {
+      drawSprite(CRAB_SPRITE, CRAB_PALETTE, crab.x, crab.y, CRAB_PIXEL, CRAB_OUTLINE);
+    }
+  }
+
   function drawFish() {
+    // Flicker while invulnerable after taking a hit, so a hit is felt
+    if (hitCooldown > 0 && Math.floor(hitCooldown * 10) % 2 === 0) return;
     drawSprite(
       FISH_SPRITE,
       FISH_PALETTE,
@@ -554,12 +758,23 @@
   }
 
   function draw() {
-    if (ladderActive) {
+    if (state === "entering") {
+      const t = Math.min(1, enterTimer / ENTER_FLOODPLAIN_DURATION);
+      drawRiverScene(BANK_WIDTH * (1 - t));
+      drawFloodplainFish(t);
+    } else if (state === "win") {
+      drawRiverScene(0);
+      drawFloodplainFish(1);
+    } else if (ladderActive) {
       drawFishLadder();
     } else {
-      drawRiver();
+      drawRiverScene(BANK_WIDTH);
     }
-    drawObstacles();
+
+    if (state !== "win" && state !== "entering") {
+      drawObstacles();
+      drawCrabs();
+    }
     drawFish();
   }
 
@@ -574,11 +789,15 @@
     requestAnimationFrame(loop);
   }
 
+  function isBetweenRuns() {
+    return state === "start" || state === "gameover" || state === "win";
+  }
+
   // Keyboard input
   window.addEventListener("keydown", (e) => {
     if (e.code === "ArrowLeft" || e.code === "KeyA") moveLeft = true;
     if (e.code === "ArrowRight" || e.code === "KeyD") moveRight = true;
-    if (e.code === "Space" && state === "gameover") resetGame();
+    if (e.code === "Space" && isBetweenRuns()) resetGame();
   });
   window.addEventListener("keyup", (e) => {
     if (e.code === "ArrowLeft" || e.code === "KeyA") moveLeft = false;
@@ -614,10 +833,12 @@
   document
     .getElementById("touch-controls")
     .addEventListener("touchstart", () => {
-      if (state === "gameover") resetGame();
+      if (isBetweenRuns()) resetGame();
     });
 
+  startButton.addEventListener("click", resetGame);
   restartButton.addEventListener("click", resetGame);
+  winRestartButton.addEventListener("click", resetGame);
 
   requestAnimationFrame(loop);
 })();

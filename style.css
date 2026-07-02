@@ -39,6 +39,7 @@ html, body {
   left: 0;
   right: 0;
   display: flex;
+  align-items: center;
   justify-content: space-between;
   padding: 0 16px;
   font-size: 14px;
@@ -48,22 +49,54 @@ html, body {
   pointer-events: none;
 }
 
-#game-over-screen {
+#health-bar {
+  width: 90px;
+  height: 14px;
+  border: 2px solid #45464a;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.4);
+  overflow: hidden;
+}
+
+#health-bar-fill {
+  height: 100%;
+  width: 100%;
+  background: #9ecfa0;
+  transition: width 0.2s ease, background 0.2s ease;
+}
+
+.overlay-screen {
   position: absolute;
   inset: 0;
+  z-index: 5;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 6px;
   background: rgba(214, 214, 214, 0.92);
   color: #45464a;
   text-align: center;
   padding: 16px;
 }
 
-#game-over-screen.hidden {
+.overlay-screen.hidden {
   display: none;
+}
+
+.overlay-screen h1 {
+  margin: 0 0 4px;
+  font-size: 26px;
+}
+
+.overlay-screen p {
+  margin: 0;
+  font-size: 13px;
+  max-width: 220px;
+}
+
+#win-screen {
+  background: rgba(190, 224, 196, 0.94);
 }
 
 #banner {
@@ -84,12 +117,7 @@ html, body {
   display: none;
 }
 
-#game-over-screen h1 {
-  margin: 0;
-  font-size: 28px;
-}
-
-#restart-button {
+.overlay-button {
   margin-top: 12px;
   padding: 10px 16px;
   font-size: 14px;
@@ -103,6 +131,7 @@ html, body {
 #touch-controls {
   position: absolute;
   inset: 0;
+  z-index: 1;
   display: flex;
 }
 
