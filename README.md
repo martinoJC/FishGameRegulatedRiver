@@ -1,4 +1,9 @@
 # FishGameRegulatedRiver
+
+<p align="left">
+  <a href="/github/actions/workflow/status/:user/:repo/:workflow"><img alt="GitHub Actions Workflow Status" src="https://img.shields.io/github/actions/workflow/status/martinoJC/FishGameRegulatedRiver/.github%2Fworkflows%2Fdocker-image.yml" /></a>
+</p>
+
 Making a fish game to navigate through a regulated river 
 
 ## Running it locally
