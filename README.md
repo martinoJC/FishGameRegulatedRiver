@@ -15,3 +15,8 @@ docker compose
 ```
 
 After a few seconds, your local server should be ready. In your browser, navigate to `localhost:3000`, which should start your game!
+
+If you are done with the game and would like to stop the server, run the following:
+```
+docker compose down
+```
