@@ -5,6 +5,8 @@
 
   const scoreEl = document.getElementById("score");
   const bestEl = document.getElementById("best");
+  const healthEl = document.getElementById("health");
+  const bannerEl = document.getElementById("banner");
   const gameOverScreen = document.getElementById("game-over-screen");
   const finalScoreEl = document.getElementById("final-score");
   const restartButton = document.getElementById("restart-button");
@@ -21,7 +23,38 @@
   // ---------------------------------------------------------------------
   // Pixel-art sprites (hand-authored pixel grids, drawn as crisp blocks)
   // ---------------------------------------------------------------------
-  function drawSprite(rows, palette, x, y, pixelSize) {
+  // `outline` (optional) stamps a 1-cell border color around the sprite's
+  // silhouette first, which makes small pixel-art creatures read clearly
+  // against a similarly-toned background.
+  function drawSprite(rows, palette, x, y, pixelSize, outline) {
+    if (outline) {
+      ctx.fillStyle = outline;
+      for (let r = 0; r < rows.length; r++) {
+        const row = rows[r];
+        for (let c = 0; c < row.length; c++) {
+          if (row[c] === ".") continue;
+          const neighbors = [
+            [r - 1, c],
+            [r + 1, c],
+            [r, c - 1],
+            [r, c + 1],
+          ];
+          for (const [nr, nc] of neighbors) {
+            const nRow = rows[nr];
+            const filled = nRow && nRow[nc] && nRow[nc] !== ".";
+            if (!filled) {
+              ctx.fillRect(
+                Math.round(x + nc * pixelSize),
+                Math.round(y + nr * pixelSize),
+                pixelSize,
+                pixelSize
+              );
+            }
+          }
+        }
+      }
+    }
+
     for (let r = 0; r < rows.length; r++) {
       const row = rows[r];
       for (let c = 0; c < row.length; c++) {
@@ -42,15 +75,16 @@
     return { width: rows[0].length * pixelSize, height: rows.length * pixelSize };
   }
 
-  // Murray cod, facing "up" (river flows toward the player)
-  const FISH_PIXEL = 2;
+  // Golden perch, facing "up" (river flows toward the player)
+  const FISH_PIXEL = 2.4;
+  const FISH_OUTLINE = "#8a6a30";
   const FISH_PALETTE = {
-    B: "#8a9a4a", // olive body
-    O: "#7a8a3f", // base olive
-    D: "#3f4d1f", // dark mottling
-    C: "#e6dcae", // cream belly
-    E: "#151515", // eye
-    F: "#a5622f", // fins/tail
+    B: "#f0d78c", // golden body
+    O: "#e6c977", // base gold
+    D: "#c9a35a", // muted golden-brown mottling
+    C: "#fbf3d9", // pale belly
+    E: "#4a3a1c", // eye
+    F: "#eab868", // fins/tail
   };
   const FISH_SPRITE = [
     "....B....",
@@ -72,67 +106,53 @@
   ];
   const FISH_DIMS = spriteDims(FISH_SPRITE, FISH_PIXEL);
 
-  // Predator bird, viewed from above with wings spread
-  const BIRD_PIXEL = 2;
+  // Predator bird, viewed from above: white body, dark eyes, swept wingtips, tail fan
+  const BIRD_PIXEL = 2.4;
+  const BIRD_OUTLINE = "#8a94a0";
   const BIRD_PALETTE = {
-    W: "#33261a", // wing
-    H: "#1c140d", // body
-    Y: "#e8b23d", // beak
+    Y: "#f0b25c", // beak
+    H: "#f7f7f5", // head/body
+    E: "#2a2a28", // eye
+    S: "#e2e6ea", // tail shading
+    W: "#f2f2f0", // wing
+    G: "#cfd8e0", // wing shading
   };
   const BIRD_SPRITE = [
-    "..W.....W..",
-    ".WWW...WWW.",
-    "WWWWWHWWWWW",
-    "..WWHHHWW..",
-    "...WHYHW...",
-    "....H.H....",
+    ".....Y.....",
+    "...EHHHE...",
+    "GW.HHHHH.WG",
+    "WWG.HHH.GWW",
+    ".GW..H..WG.",
+    "...SHSHS...",
+    "....SSS....",
   ];
   const BIRD_DIMS = spriteDims(BIRD_SPRITE, BIRD_PIXEL);
 
-  // Motorboat, bow first
-  const BOAT_PIXEL = 2;
-  const BOAT_PALETTE = {
-    H: "#e8e8e8", // hull
-    R: "#c23b3b", // stripe
-    D: "#1c1c1c", // motor
-    W: "#dfe9f2", // wake
+  // Turtle, viewed from above
+  const TURTLE_PIXEL = 2.4;
+  const TURTLE_OUTLINE = "#4f6b52";
+  const TURTLE_PALETTE = {
+    H: "#8a9c5e", // head
+    E: "#2a2a1a", // eye
+    K: "#a8b571", // legs/skin
+    S: "#a9d6ab", // shell
+    P: "#5f8f63", // shell pattern
   };
-  const BOAT_SPRITE = [
-    "....H....",
+  const TURTLE_SPRITE = [
     "...HHH...",
-    "..HHHHH..",
-    ".HRRRRRH.",
-    "HHHHHHHHH",
-    "HHHHHHHHH",
-    "HHRRRRRHH",
-    "HHHHHHHHH",
-    "HHHHHHHHH",
-    "HHRRRRRHH",
-    "HHHHHHHHH",
-    "HHHHHHHHH",
-    ".HHHHHHH.",
-    "..HHDHH..",
-    "...WDW...",
-    "..W.D.W..",
+    "..EHHHE..",
+    ".KKSSSKK.",
+    "KKSPSPSKK",
+    "KSSPSPSSK",
+    "KSPSSSPSK",
+    "KSSPSPSSK",
+    "KSPSSSPSK",
+    ".KSSSSSK.",
+    "..KK.KK..",
+    "...K.K...",
+    "....K....",
   ];
-  const BOAT_DIMS = spriteDims(BOAT_SPRITE, BOAT_PIXEL);
-
-  // Floating debris variants
-  const DEBRIS_PIXEL = 2.2;
-  const DEBRIS_VARIANTS = [
-    {
-      palette: { T: "#2b2b2b" },
-      rows: [".TTTTT.", "TT...TT", "T.....T", "T.....T", "T.....T", "TT...TT", ".TTTTT."],
-    },
-    {
-      palette: { N: "#1c1c1c", G: "#2f6b3f" },
-      rows: ["..N..", "..N..", ".GGG.", "GGGGG", "GGGGG", "GGGGG", "GGGGG", "GGGGG", ".GGG."],
-    },
-    {
-      palette: { A: "#b0b0b0", R: "#c94444" },
-      rows: [".AAA.", "AAAAA", "ARRRA", "ARRRA", "ARRRA", "AAAAA", ".AAA."],
-    },
-  ];
+  const TURTLE_DIMS = spriteDims(TURTLE_SPRITE, TURTLE_PIXEL);
 
   const FISH_WIDTH = FISH_DIMS.width;
   const FISH_HEIGHT = FISH_DIMS.height;
@@ -150,13 +170,23 @@
 
   // Obstacle spawn weights (higher = more common)
   const OBSTACLE_WEIGHTS = [
-    { type: "log", weight: 30 },
-    { type: "debris", weight: 20 },
-    { type: "net", weight: 15 },
-    { type: "bird", weight: 15 },
-    { type: "boat", weight: 12 },
-    { type: "weir", weight: 8 },
+    { type: "log", weight: 40 },
+    { type: "bird", weight: 25 },
+    { type: "turtle", weight: 20 },
+    { type: "weir", weight: 15 },
   ];
+
+  // Fish ladder section: a curvy pool-and-weir channel with no hard
+  // obstacles. Straying outside the channel costs health instead of
+  // ending the run instantly.
+  const LADDER_START_TIME = 10; // seconds survived
+  const LADDER_DURATION = 7; // seconds
+  const LADDER_MAX_HEALTH = 5;
+  const LADDER_HIT_COOLDOWN = 0.6; // seconds of grace after taking damage
+  const LADDER_CHANNEL_WIDTH = RIVER_WIDTH * 0.55;
+  const LADDER_AMPLITUDE = (RIVER_WIDTH - LADDER_CHANNEL_WIDTH) / 2;
+  const LADDER_WAVELENGTH = 300; // px of scroll distance per full S-curve
+  const LADDER_STEP_SPACING = 90; // px between pool-and-weir step lines
 
   let state = "playing"; // "playing" | "gameover"
   let fishX = WIDTH / 2;
@@ -172,6 +202,12 @@
 
   let waterLineOffset = 0;
 
+  let ladderActive = false;
+  let ladderHealth = LADDER_MAX_HEALTH;
+  let ladderDistance = 0;
+  let ladderHitCooldown = 0;
+  let bannerTimer = 0;
+
   bestEl.textContent = `Best: ${bestScore}`;
 
   function resetGame() {
@@ -182,8 +218,25 @@
     elapsed = 0;
     score = 0;
     waterLineOffset = 0;
+    ladderActive = false;
+    ladderHealth = LADDER_MAX_HEALTH;
+    ladderDistance = 0;
+    ladderHitCooldown = 0;
+    bannerTimer = 0;
+    healthEl.classList.add("hidden");
+    bannerEl.classList.add("hidden");
     state = "playing";
     gameOverScreen.classList.add("hidden");
+  }
+
+  function updateHealthDisplay() {
+    healthEl.textContent = `Health: ${ladderHealth}`;
+  }
+
+  function showBanner(text, duration) {
+    bannerEl.textContent = text;
+    bannerEl.classList.remove("hidden");
+    bannerTimer = duration;
   }
 
   function pickObstacleType() {
@@ -197,7 +250,7 @@
   }
 
   // A "gap" obstacle spans from one bank partway across the river, leaving
-  // a gap on the other side (used for the weir and the fishing net).
+  // a gap on the other side (used for the weir).
   function makeGapObstacle(type, widthFrac, height) {
     const width = RIVER_WIDTH * widthFrac;
     const gapLeft = Math.random() < 0.5; // true = gap is on the left bank
@@ -216,10 +269,6 @@
     return makeGapObstacle("weir", 0.52, 24);
   }
 
-  function makeNet() {
-    return makeGapObstacle("net", 0.62, 10);
-  }
-
   function makeBird() {
     const width = BIRD_DIMS.width;
     const height = BIRD_DIMS.height;
@@ -227,26 +276,11 @@
     return { type: "bird", x: baseX, baseX, y: -height, width, height, phase: Math.random() * Math.PI * 2 };
   }
 
-  function makeDebris() {
-    const variant = DEBRIS_VARIANTS[Math.floor(Math.random() * DEBRIS_VARIANTS.length)];
-    const dims = spriteDims(variant.rows, DEBRIS_PIXEL);
-    const x = RIVER_LEFT + Math.random() * (RIVER_WIDTH - dims.width);
-    return {
-      type: "debris",
-      x,
-      y: -dims.height,
-      width: dims.width,
-      height: dims.height,
-      speedMult: 1.3,
-      variant,
-    };
-  }
-
-  function makeBoat() {
-    const width = BOAT_DIMS.width;
-    const height = BOAT_DIMS.height;
+  function makeTurtle() {
+    const width = TURTLE_DIMS.width;
+    const height = TURTLE_DIMS.height;
     const x = RIVER_LEFT + Math.random() * (RIVER_WIDTH - width);
-    return { type: "boat", x, y: -height, width, height, speedMult: 1.6 };
+    return { type: "turtle", x, y: -height, width, height, speedMult: 1.6 };
   }
 
   function spawnObstacle() {
@@ -254,17 +288,11 @@
       case "weir":
         obstacles.push(makeWeir());
         break;
-      case "net":
-        obstacles.push(makeNet());
-        break;
       case "bird":
         obstacles.push(makeBird());
         break;
-      case "debris":
-        obstacles.push(makeDebris());
-        break;
-      case "boat":
-        obstacles.push(makeBoat());
+      case "turtle":
+        obstacles.push(makeTurtle());
         break;
       default:
         obstacles.push(makeLog());
@@ -280,27 +308,7 @@
     );
   }
 
-  function update(dt) {
-    if (state !== "playing") return;
-
-    // Movement
-    if (moveLeft) fishX -= FISH_SPEED * dt;
-    if (moveRight) fishX += FISH_SPEED * dt;
-    fishX = Math.max(
-      RIVER_LEFT + FISH_WIDTH / 2,
-      Math.min(RIVER_RIGHT - FISH_WIDTH / 2, fishX)
-    );
-
-    // Difficulty ramp
-    elapsed += dt;
-    scrollSpeed = Math.min(
-      MAX_SCROLL_SPEED,
-      BASE_SCROLL_SPEED + elapsed * SCROLL_ACCEL
-    );
-
-    // Water scroll animation
-    waterLineOffset = (waterLineOffset + scrollSpeed * dt) % 24;
-
+  function updateObstacles(dt) {
     // Spawn obstacles
     spawnTimer -= dt * 1000;
     if (spawnTimer <= 0) {
@@ -339,6 +347,89 @@
         break;
       }
     }
+  }
+
+  // Center-x of the fish ladder's winding channel at a given "world"
+  // position (distance already scrolled minus the canvas row). Phase is
+  // shifted so the channel starts centered under wherever the fish
+  // already is, for a smooth hand-off from the open river.
+  function ladderChannelCenter(worldPos) {
+    const phase = ((worldPos + FISH_Y) / LADDER_WAVELENGTH) * Math.PI * 2;
+    return WIDTH / 2 + Math.sin(phase) * LADDER_AMPLITUDE;
+  }
+
+  function updateLadder(dt) {
+    ladderDistance += scrollSpeed * dt;
+    if (ladderHitCooldown > 0) ladderHitCooldown -= dt;
+
+    const fishWorldPos = ladderDistance - FISH_Y;
+    const center = ladderChannelCenter(fishWorldPos);
+    const wallLeft = center - LADDER_CHANNEL_WIDTH / 2;
+    const wallRight = center + LADDER_CHANNEL_WIDTH / 2;
+
+    const fishLeft = fishX - FISH_WIDTH / 2 + 2;
+    const fishRight = fishX + FISH_WIDTH / 2 - 2;
+
+    if ((fishLeft < wallLeft || fishRight > wallRight) && ladderHitCooldown <= 0) {
+      ladderHealth -= 1;
+      ladderHitCooldown = LADDER_HIT_COOLDOWN;
+      updateHealthDisplay();
+      if (ladderHealth <= 0) endGame();
+    }
+  }
+
+  function update(dt) {
+    if (state !== "playing") return;
+
+    // Movement
+    if (moveLeft) fishX -= FISH_SPEED * dt;
+    if (moveRight) fishX += FISH_SPEED * dt;
+    fishX = Math.max(
+      RIVER_LEFT + FISH_WIDTH / 2,
+      Math.min(RIVER_RIGHT - FISH_WIDTH / 2, fishX)
+    );
+
+    // Difficulty ramp
+    elapsed += dt;
+    scrollSpeed = Math.min(
+      MAX_SCROLL_SPEED,
+      BASE_SCROLL_SPEED + elapsed * SCROLL_ACCEL
+    );
+
+    // Water scroll animation
+    waterLineOffset = (waterLineOffset + scrollSpeed * dt) % 24;
+
+    if (bannerTimer > 0) {
+      bannerTimer -= dt;
+      if (bannerTimer <= 0) bannerEl.classList.add("hidden");
+    }
+
+    // Enter/exit the fish ladder section
+    if (
+      !ladderActive &&
+      elapsed >= LADDER_START_TIME &&
+      elapsed < LADDER_START_TIME + LADDER_DURATION
+    ) {
+      ladderActive = true;
+      ladderHealth = LADDER_MAX_HEALTH;
+      ladderDistance = 0;
+      ladderHitCooldown = 0;
+      obstacles = [];
+      healthEl.classList.remove("hidden");
+      updateHealthDisplay();
+      showBanner("Fish ladder ahead — stay in the channel!", 2.2);
+    } else if (ladderActive && elapsed >= LADDER_START_TIME + LADDER_DURATION) {
+      ladderActive = false;
+      healthEl.classList.add("hidden");
+      spawnTimer = 400;
+      showBanner("Back to the river", 1.8);
+    }
+
+    if (ladderActive) {
+      updateLadder(dt);
+    } else {
+      updateObstacles(dt);
+    }
 
     // Score = distance survived
     score = Math.floor(elapsed * 10);
@@ -357,13 +448,13 @@
   }
 
   function drawRiver() {
-    ctx.fillStyle = "#2f8f4e";
+    ctx.fillStyle = "#bfe3b4";
     ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
-    ctx.fillStyle = "#1b5e7d";
+    ctx.fillStyle = "#a9d8e6";
     ctx.fillRect(RIVER_LEFT, 0, RIVER_WIDTH, HEIGHT);
 
-    ctx.strokeStyle = "rgba(255,255,255,0.25)";
+    ctx.strokeStyle = "rgba(255,255,255,0.4)";
     ctx.lineWidth = 2;
     for (let y = -24 + waterLineOffset; y < HEIGHT; y += 24) {
       ctx.beginPath();
@@ -377,13 +468,40 @@
     }
   }
 
+  function drawFishLadder() {
+    ctx.fillStyle = "#bfe3b4";
+    ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
+    const step = 2;
+    for (let y = 0; y < HEIGHT; y += step) {
+      const worldPos = ladderDistance - y;
+      const center = ladderChannelCenter(worldPos);
+      const left = center - LADDER_CHANNEL_WIDTH / 2;
+      const right = center + LADDER_CHANNEL_WIDTH / 2;
+
+      ctx.fillStyle = "#d8d8d2";
+      ctx.fillRect(RIVER_LEFT, y, RIVER_WIDTH, step);
+
+      ctx.fillStyle = "#a9d8e6";
+      ctx.fillRect(left, y, right - left, step);
+
+      // Pool-and-weir step lines — decorative only, not solid
+      const stepPhase =
+        ((worldPos % LADDER_STEP_SPACING) + LADDER_STEP_SPACING) % LADDER_STEP_SPACING;
+      if (stepPhase < step) {
+        ctx.fillStyle = "rgba(255,255,255,0.55)";
+        ctx.fillRect(left, y, right - left, step);
+      }
+    }
+  }
+
   function drawLog(o) {
-    ctx.fillStyle = "#6b4226";
+    ctx.fillStyle = "#c9a876";
     ctx.fillRect(o.x, o.y, o.width, o.height);
-    ctx.fillStyle = "#4a2c18";
+    ctx.fillStyle = "#a9835a";
     ctx.fillRect(o.x, o.y, o.width, 3);
     ctx.fillRect(o.x, o.y + o.height - 3, o.width, 3);
-    ctx.fillStyle = "#8a5a34";
+    ctx.fillStyle = "#dbb98a";
     ctx.beginPath();
     ctx.arc(o.x + 5, o.y + o.height / 2, 4, 0, Math.PI * 2);
     ctx.arc(o.x + o.width - 5, o.y + o.height / 2, 4, 0, Math.PI * 2);
@@ -391,36 +509,18 @@
   }
 
   function drawWeir(o) {
-    ctx.fillStyle = "#8a8a86";
+    ctx.fillStyle = "#d8d8d2";
     ctx.fillRect(o.x, o.y, o.width, o.height);
-    ctx.fillStyle = "#6a6a66";
+    ctx.fillStyle = "#bcbcb4";
     for (let px = o.x; px < o.x + o.width; px += 10) {
       ctx.fillRect(px, o.y, 3, o.height);
     }
-    ctx.fillStyle = "rgba(255,255,255,0.65)";
+    ctx.fillStyle = "rgba(255,255,255,0.8)";
     for (let px = o.x; px < o.x + o.width; px += 8) {
       ctx.fillRect(px, o.y + o.height - 5, 4, 3);
     }
-    ctx.fillStyle = "#4a4a46";
+    ctx.fillStyle = "#c2c2ba";
     ctx.fillRect(o.x, o.y, o.width, 3);
-  }
-
-  function drawNet(o) {
-    ctx.fillStyle = "rgba(210,210,200,0.55)";
-    ctx.fillRect(o.x, o.y, o.width, o.height);
-    ctx.strokeStyle = "rgba(60,60,50,0.8)";
-    ctx.lineWidth = 1;
-    for (let px = o.x; px < o.x + o.width; px += 6) {
-      ctx.beginPath();
-      ctx.moveTo(px, o.y);
-      ctx.lineTo(px, o.y + o.height);
-      ctx.stroke();
-    }
-    ctx.fillStyle = "#d94f4f";
-    ctx.beginPath();
-    ctx.arc(o.x + 3, o.y + o.height / 2, 3, 0, Math.PI * 2);
-    ctx.arc(o.x + o.width - 3, o.y + o.height / 2, 3, 0, Math.PI * 2);
-    ctx.fill();
   }
 
   function drawObstacles() {
@@ -432,17 +532,11 @@
         case "weir":
           drawWeir(o);
           break;
-        case "net":
-          drawNet(o);
-          break;
         case "bird":
-          drawSprite(BIRD_SPRITE, BIRD_PALETTE, o.x, o.y, BIRD_PIXEL);
+          drawSprite(BIRD_SPRITE, BIRD_PALETTE, o.x, o.y, BIRD_PIXEL, BIRD_OUTLINE);
           break;
-        case "boat":
-          drawSprite(BOAT_SPRITE, BOAT_PALETTE, o.x, o.y, BOAT_PIXEL);
-          break;
-        case "debris":
-          drawSprite(o.variant.rows, o.variant.palette, o.x, o.y, DEBRIS_PIXEL);
+        case "turtle":
+          drawSprite(TURTLE_SPRITE, TURTLE_PALETTE, o.x, o.y, TURTLE_PIXEL, TURTLE_OUTLINE);
           break;
       }
     }
@@ -454,12 +548,17 @@
       FISH_PALETTE,
       fishX - FISH_WIDTH / 2,
       FISH_Y - FISH_HEIGHT / 2,
-      FISH_PIXEL
+      FISH_PIXEL,
+      FISH_OUTLINE
     );
   }
 
   function draw() {
-    drawRiver();
+    if (ladderActive) {
+      drawFishLadder();
+    } else {
+      drawRiver();
+    }
     drawObstacles();
     drawFish();
   }

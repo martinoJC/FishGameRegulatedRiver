@@ -6,8 +6,8 @@
 html, body {
   height: 100%;
   margin: 0;
-  background: #14202b;
-  color: #eaf6ff;
+  background: #d6d6d6;
+  color: #45464a;
   font-family: "Segoe UI", system-ui, sans-serif;
   overflow: hidden;
 }
@@ -23,14 +23,14 @@ html, body {
 }
 
 #game-canvas {
-  background: #1b5e7d;
+  background: #a9d8e6;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
   height: 100vh;
   max-width: 100vw;
   width: auto;
   aspect-ratio: 240 / 360;
-  border: 2px solid #0a1620;
+  border: 2px solid #aaacae;
 }
 
 #hud {
@@ -43,7 +43,8 @@ html, body {
   padding: 0 16px;
   font-size: 14px;
   font-weight: bold;
-  text-shadow: 1px 1px 2px #000;
+  color: #45464a;
+  text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.6);
   pointer-events: none;
 }
 
@@ -55,12 +56,31 @@ html, body {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  background: rgba(10, 22, 32, 0.85);
+  background: rgba(214, 214, 214, 0.92);
+  color: #45464a;
   text-align: center;
   padding: 16px;
 }
 
 #game-over-screen.hidden {
+  display: none;
+}
+
+#banner {
+  position: absolute;
+  top: 40%;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 16px;
+  font-weight: bold;
+  color: #45464a;
+  text-shadow: 1px 1px 3px rgba(255, 255, 255, 0.8);
+  pointer-events: none;
+  transition: opacity 0.4s ease;
+}
+
+#banner.hidden {
   display: none;
 }
 
@@ -73,8 +93,8 @@ html, body {
   margin-top: 12px;
   padding: 10px 16px;
   font-size: 14px;
-  background: #2d8f5f;
-  color: #fff;
+  background: #9ecfa0;
+  color: #33472f;
   border: none;
   border-radius: 6px;
   cursor: pointer;
