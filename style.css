@@ -92,7 +92,7 @@ html, body {
 .overlay-screen p {
   margin: 0;
   font-size: 13px;
-  max-width: 220px;
+  white-space: nowrap;
 }
 
 #win-screen {
