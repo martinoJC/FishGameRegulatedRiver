@@ -19,6 +19,6 @@ Game is named **Regulated Waters**. All 3 planned levels are built:
 - Level 2 — Murray cod, human trash/pollution theme (tire/net/toxic waste pipe, storm drain set-piece).
 - Level 3 — Australian longfin eel, dam/turbine theme at night (turbine grate/sluice gate/spillway eddy, turbine bypass set-piece); the eel is longer than the other two fish and has a swimming wiggle animation.
 
-Tech stack: plain JavaScript + HTML5 Canvas, no framework or build step (see `projectplan.md` decisions table). Deployed to GitHub Pages via GitHub Actions on push to `main`. UI (start/game-over/level-complete/win screens, buttons) uses Kenney's CC0 "UI Pack: Adventure" pixel-art panels. Full design history and decisions are tracked in `projectplan.md`.
+Tech stack: plain JavaScript + HTML5 Canvas, no framework or build step (see `projectplan.md` decisions table). Deployed to GitHub Pages via GitHub Actions on push to `main`. UI (start/game-over/level-complete/win screens, buttons) uses Kenney's CC0 "UI Pack: Adventure" pixel-art panels. Collecting a set-piece pickup shows a small floating "+ HEALTH" pixel-font popup. Level 3's difficulty has been tuned post-playtest (spillway eddy frequency increased, final river stretch lengthened). Full design history and decisions are tracked in `projectplan.md`.
 
 

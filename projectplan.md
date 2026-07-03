@@ -108,6 +108,30 @@ instant a transition *started*, rather than when it actually finished):
   `totalScore + score`). Fixed by folding each level's score into
   `totalScore` exactly once, at the moment its swim-in scene completes.
 
+**Pickup feedback**: collecting a set-piece pickup (crab/bottle/glass eel)
+pops up a small "+ HEALTH" label anchored to its top-right corner, floating
+upward and fading out over ~1.1s. It's drawn with a hand-built 3x5 pixel
+font (`PIXEL_FONT`, only the handful of glyphs `+ HEALTH` needs) rendered
+via `fillRect` on rounded coordinates, not `ctx.fillText` — plain canvas
+text is anti-aliased and looked blurry once blown up by the game's
+`image-rendering: pixelated` scaling, inconsistent with every other
+hand-authored pixel-grid sprite in the game.
+
+**Level 3 difficulty tuning** (post-playtest, iterative): the spillway eddy
+(the fast-mover hazard) started at the same weight as the other two
+obstacle types (25) and felt too rare, so it went through several rounds —
+doubled to 50, then to 100 (4x original) — while turbineGrate/sluiceGate
+weights stayed untouched throughout, since the ask was specifically "more
+eddies," not "harder overall." Still felt too sparse right at the end of
+the level, so two more changes landed together: the final river stretch
+(after the set-piece exits, before the ending scene) was extended from the
+default 10s to 20s via a new `level.finalRiverDuration` field, and a
+`finalSectionWeightMultiplier: 2` on the eddy type doubles its weight again
+specifically during that final stretch — obstacle picking now takes a
+`finalSection` flag through `spawnObstacle`/`pickObstacleType` so per-type
+weight boosts can apply only there without affecting the rest of the level
+or the other two levels.
+
 **Backlog for possible later levels** (not built): irrigation pump intakes,
 lock chamber gates, urban stormwater/turbidity zones beyond what level 2
 already covers. Revisit only if the game grows past 3 levels.
@@ -131,7 +155,7 @@ Each level (all 3, not just level 1) has a defined beginning, middle, and end ra
 
 | Phase | Timing | What happens |
 |---|---|---|
-| Start screen | Before play begins | Static overlay: title + 3 short lines ("Migrate as an Australian fish." / "Dodge obstacles and collect objects." / "Reach the spawning ground to win!"), "tap or press Space to start"; the river renders statically behind it as a backdrop, and a small canvas draws all 3 playable species lined up side by side (see UI/assets section below) |
+| Start screen | Before play begins | Static overlay: title + 3 short lines ("Migrate as native Australian fish through highly modified rivers." / "Dodge obstacles and collect objects." / "Reach the spawning grounds to win!"), "tap or press Space to start"; the river renders statically behind it as a backdrop, and a small canvas draws all 3 playable species lined up side by side (see UI/assets section below) |
 | River | 0s–10s | Normal obstacles (log/weir/bird/turtle) |
 | Fish ladder (set-piece) | 10s–20s | See Fish ladder section above / "Levels 2 & 3" for the generalized version |
 | River | 20s–30s | Normal obstacles resume |

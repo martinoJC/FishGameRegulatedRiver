@@ -311,17 +311,20 @@
     const cx = o.x + o.width / 2;
     const cy = o.y + o.height / 2;
     const r = o.width / 2;
+    const holeR = r * 0.3;
+    // The hole is a true gap in the fill path (outer ring wound one way,
+    // hole wound the other way cancels it out under the nonzero rule) so
+    // the water already painted underneath this frame shows through,
+    // instead of being covered by an opaque circle.
     ctx.fillStyle = "#2a2a2a";
     ctx.beginPath();
     ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.arc(cx, cy, holeR, 0, Math.PI * 2, true);
     ctx.fill();
     ctx.fillStyle = "#55555a";
     ctx.beginPath();
     ctx.arc(cx, cy, r * 0.55, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = "#2a2a2a";
-    ctx.beginPath();
-    ctx.arc(cx, cy, r * 0.3, 0, Math.PI * 2);
+    ctx.arc(cx, cy, holeR, 0, Math.PI * 2, true);
     ctx.fill();
     ctx.fillStyle = "#161616";
     for (let i = 0; i < 8; i++) {
@@ -364,33 +367,113 @@
     ".GGGGGGG.",
   ];
 
-  // --- Level 3: turbine grate (solid) / sluice gate (gap) / spillway eddy (fast) ---
+  // --- Level 3: turbine grate (solid) / irrigation pump pipe (gap) / spillway eddy (fast) ---
+  // A recessed, hazard-striped trash-rack — the intake screen in front of a
+  // turbine — with pale streaks of water rushing between the bars. The
+  // yellow/black stripe frame (a real hydro-infrastructure convention) is
+  // what sets it apart from the pump pipe below at a glance, rather than
+  // both obstacles reading as similar grey bar patterns.
   function drawTurbineGrate(o) {
-    ctx.fillStyle = "#3a4249";
+    ctx.fillStyle = "#12181c";
     ctx.fillRect(o.x, o.y, o.width, o.height);
-    ctx.strokeStyle = "#6a747d";
-    ctx.lineWidth = 1;
-    for (let px = o.x + 3; px < o.x + o.width; px += 6) {
+
+    const stripe = 4;
+    ctx.fillStyle = "#e8c53a";
+    ctx.fillRect(o.x, o.y, o.width, stripe);
+    ctx.fillRect(o.x, o.y + o.height - stripe, o.width, stripe);
+    ctx.fillStyle = "#22262a";
+    for (let px = o.x; px < o.x + o.width; px += stripe * 2) {
+      ctx.fillRect(px, o.y, stripe, stripe);
+      ctx.fillRect(px, o.y + o.height - stripe, stripe, stripe);
+    }
+
+    ctx.strokeStyle = "#7a848d";
+    ctx.lineWidth = 2;
+    for (let px = o.x + 4; px < o.x + o.width; px += 7) {
       ctx.beginPath();
-      ctx.moveTo(px, o.y);
-      ctx.lineTo(px, o.y + o.height);
+      ctx.moveTo(px, o.y + stripe);
+      ctx.lineTo(px, o.y + o.height - stripe);
       ctx.stroke();
     }
-    ctx.fillStyle = "#22282d";
-    ctx.fillRect(o.x, o.y, o.width, 2);
-    ctx.fillRect(o.x, o.y + o.height - 2, o.width, 2);
+
+    ctx.fillStyle = "rgba(180,205,215,0.5)";
+    for (let px = o.x + 2; px < o.x + o.width; px += 7) {
+      ctx.fillRect(px, o.y + o.height / 2 - 1, 3, 2);
+    }
   }
 
-  function drawSluiceGate(o) {
-    ctx.fillStyle = "#4a5560";
-    ctx.fillRect(o.x, o.y, o.width, o.height);
-    ctx.fillStyle = "#5f6b76";
-    for (let px = o.x; px < o.x + o.width; px += 8) {
-      ctx.fillRect(px, o.y, 4, o.height);
+  // An irrigation pump's intake pipe, jutting out from whichever bank it's
+  // mounted to (reusing makeGapObstacle's `gapLeft` — true means the solid
+  // mass sits against the right bank — to know which end is bolted down
+  // and which end is the open mouth facing the river) with animated water
+  // streaks visibly sliding into its open mouth, rather than a static
+  // dead end or ambiguous decorative rings.
+  function drawIrrigationPipe(o) {
+    const mountRight = o.gapLeft;
+    const midY = o.y + o.height / 2;
+    const pipeH = Math.min(16, o.height * 0.6);
+    const topY = midY - pipeH / 2;
+    const mouthX = mountRight ? o.x : o.x + o.width;
+    const mouthDir = mountRight ? -1 : 1; // which way open water extends from the mouth
+
+    ctx.fillStyle = "#6b6258";
+    ctx.fillRect(o.x, topY, o.width, pipeH);
+    ctx.fillStyle = "#8f8474";
+    ctx.fillRect(o.x, topY, o.width, 2);
+    ctx.fillStyle = "#3f392f";
+    ctx.fillRect(o.x, topY + pipeH - 2, o.width, 2);
+
+    // Rivet/joint bands along the pipe
+    ctx.fillStyle = "#332f28";
+    for (let px = o.x + 4; px < o.x + o.width - 4; px += 9) {
+      ctx.fillRect(px, topY, 2, pipeH);
     }
-    ctx.fillStyle = "#333c44";
-    ctx.fillRect(o.x, o.y, o.width, 3);
-    ctx.fillRect(o.x, o.y + o.height - 3, o.width, 3);
+
+    // Mounting flange bolted to the bank
+    const flangeX = mountRight ? o.x + o.width - 6 : o.x;
+    ctx.fillStyle = "#4a4238";
+    ctx.fillRect(flangeX, topY - 3, 6, pipeH + 6);
+
+    // Open intake mouth
+    const mouthR = pipeH / 2 + 1;
+    ctx.fillStyle = "#dfe6ea";
+    ctx.beginPath();
+    ctx.arc(mouthX, midY, mouthR, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#161a1c";
+    ctx.beginPath();
+    ctx.arc(mouthX, midY, mouthR - 2, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Small ">"-shaped arrows visibly traveling toward the mouth and
+    // vanishing into it, rather than static rings or thin streak lines —
+    // an arrow pointing the way water is flowing is about as unambiguous
+    // as this can read at a glance. Each one starts out in open water,
+    // slides inward over a short loop, and converges toward dead-center on
+    // the mouth as it gets close, reinforcing the "pulled in" motion.
+    const t = performance.now() / 1000;
+    const maxDist = 26;
+    const period = 0.9;
+    const arrowDir = -mouthDir; // points toward the mouth, the direction water is flowing
+    const rowOffsets = [-10, -5, 0, 5, 10];
+    ctx.strokeStyle = "#eafcff";
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    rowOffsets.forEach((dy, i) => {
+      const phase = (((t + (i * period) / rowOffsets.length) % period) + period) % period;
+      const distFrac = 1 - phase / period; // 1 = just spawned far out, 0 = reaching the mouth
+      const x = mouthX + mouthDir * maxDist * distFrac;
+      const y = midY + dy * distFrac;
+      const size = 4 + 2 * distFrac; // shrinks slightly as it nears the mouth
+      ctx.globalAlpha = 0.55 + 0.45 * distFrac;
+      ctx.beginPath();
+      ctx.moveTo(x - arrowDir * size * 0.5, y - size * 0.7);
+      ctx.lineTo(x + arrowDir * size * 0.5, y);
+      ctx.lineTo(x - arrowDir * size * 0.5, y + size * 0.7);
+      ctx.stroke();
+    });
+    ctx.globalAlpha = 1;
   }
 
   const EDDY_OUTLINE = "#345a70";
@@ -544,10 +627,21 @@
       ],
       setpiece: {
         name: "fish ladder",
-        enterBanner: "Pipe fishway ahead!",
+        enterBanner: "Dam ahead — climb the fish ladder!",
         wallColor: "#d8d8d2",
         channelColor: "#a9d8e6",
         channelWidthFrac: 0.55,
+        // A concrete dam wall drawn once at the very front of the
+        // set-piece (see drawDamFace) so the fish ladder reads as a notch
+        // cut through an actual barrier, not just a wandering channel.
+        damFace: {
+          color: "#9a9a92", // main concrete face
+          darkColor: "#63635c", // pier/buttress shadow + notch frame
+          crestColor: "#c8c8c0", // crest/roadway lip along the top (upstream) edge
+          foamColor: "rgba(255,255,255,0.85)", // spillway water sheeting down the face
+          turbulentColor: "rgba(255,255,255,0.8)", // churning whitewater at the base
+          height: 56,
+        },
         pickup: {
           sprite: CRAB_SPRITE,
           palette: CRAB_PALETTE,
@@ -577,7 +671,7 @@
         { sprites: [BARREL_SPRITE], palette: BARREL_PALETTE, outline: BARREL_OUTLINE, pixel: LITTER_PIXEL, weight: 35 },
       ],
       obstacleTypes: [
-        { type: "tire", weight: 40, make: () => makeSolidObstacle("tire", 24, 24, 24), draw: drawTire },
+        { type: "tire", weight: 40, make: () => makeSolidObstacle("tire", 34, 34, 34), draw: drawTire },
         { type: "net", weight: 35, make: () => makeGapObstacle("net", 0.52, 20), draw: drawNet },
         {
           type: "wastePipe",
@@ -588,10 +682,20 @@
       ],
       setpiece: {
         name: "storm drain",
-        enterBanner: "Storm drain ahead!",
         wallColor: "#8a9088",
         channelColor: "#8fada2",
         channelWidthFrac: 0.5,
+        // Same concrete-wall treatment as level 1's dam (see drawDamFace),
+        // recolored grimier/greyer to read as a storm drain outfall wall
+        // rather than a rural dam.
+        damFace: {
+          color: "#83887e",
+          darkColor: "#52564c",
+          crestColor: "#a3a898",
+          foamColor: "rgba(213,221,206,0.85)",
+          turbulentColor: "rgba(206,214,198,0.8)",
+          height: 56,
+        },
         pickup: {
           sprite: BOTTLE_SPRITE,
           palette: BOTTLE_PALETTE,
@@ -627,12 +731,20 @@
       // scene) runs 20s here instead of the usual 10s, giving the doubled
       // eddy weight below more room to actually show up.
       finalRiverDuration: 20,
+      // Extra eddy spawns layered on *top* of the normal weighted pick
+      // during the final river stretch — additive rather than a further
+      // reweighting, so turbineGrate/irrigationPipe keep spawning exactly
+      // as often as they do everywhere else in the level instead of being
+      // crowded out. See updateObstacles(). Tuned to roughly double the
+      // eddy count there on top of its existing finalSectionWeightMultiplier
+      // share, per a difficulty-tuning request.
+      finalSectionBonusObstacle: { type: "spillwayEddy", interval: 900 },
       obstacleTypes: [
         { type: "turbineGrate", weight: 40, make: () => makeSolidObstacle("turbineGrate", 28, 58, 14), draw: drawTurbineGrate },
-        { type: "sluiceGate", weight: 35, make: () => makeGapObstacle("sluiceGate", 0.5, 22), draw: drawSluiceGate },
+        { type: "irrigationPipe", weight: 35, make: () => makeGapObstacle("irrigationPipe", 0.5, 22), draw: drawIrrigationPipe },
         {
           // 4x the original weight (was 25, same as turbineGrate's and
-          // sluiceGate's own unchanged weights) so a lot more of these
+          // irrigationPipe's own unchanged weights) so a lot more of these
           // fast-moving hydraulic hazards come down the channel, without
           // reducing how often the other two show up. Doubled again on
           // top of that during the final river stretch (after the
@@ -647,10 +759,19 @@
       ],
       setpiece: {
         name: "turbine bypass",
-        enterBanner: "Turbine bypass ahead!",
         wallColor: "#333c42",
         channelColor: "#3d5a68",
         channelWidthFrac: 0.45,
+        // Same treatment as level 1's dam (see drawDamFace), recolored
+        // dark industrial concrete to match the night/hydro theme.
+        damFace: {
+          color: "#4a5158",
+          darkColor: "#282e33",
+          crestColor: "#6b747c",
+          foamColor: "rgba(220,235,245,0.85)",
+          turbulentColor: "rgba(200,225,240,0.8)",
+          height: 56,
+        },
         pickup: {
           sprite: GLASS_EEL_SPRITE,
           palette: GLASS_EEL_PALETTE,
@@ -697,6 +818,11 @@
   // transition. Recomputed by startLevel() since it's level-dependent.
   let LEVEL_END_TIME = 0;
   const FLOODPLAIN_FISH_COUNT = 7;
+  // Bimodal rather than one continuous random range — a couple of clearly
+  // large adults among a bunch of clearly small babies reads as "a family,"
+  // where the old 0.7x-1.4x spread (everything closer to the same size)
+  // didn't.
+  const FLOODPLAIN_ADULT_COUNT = 2;
   const ENTER_FLOODPLAIN_DURATION = 2.5; // seconds — banks recede, fish glides to center
 
   const PICKUP_FIRST_SPAWN_DELAY = 2500; // ms — let the entry banner clear first
@@ -724,6 +850,7 @@
   let obstacles = [];
   let scrollSpeed = BASE_SCROLL_SPEED;
   let spawnTimer = 0;
+  let bonusSpawnTimer = 0; // see level.finalSectionBonusObstacle
   let elapsed = 0; // seconds survived within the current level
   let score = 0; // current level's live score
   let totalScore = 0; // completed levels' accumulated score
@@ -781,6 +908,7 @@
     obstacles = [];
     scrollSpeed = BASE_SCROLL_SPEED;
     spawnTimer = 0;
+    bonusSpawnTimer = 0;
     elapsed = 0;
     score = 0;
     waterLineOffset = 0;
@@ -821,8 +949,8 @@
   // Rejection-samples a position that doesn't overlap any fish already
   // placed — includes the bob animation's amplitude in the spacing so two
   // fish can't be nudged into touching as they bob up and down.
-  function placeFloodplainFish(existing) {
-    const scale = 0.7 + Math.random() * 0.7;
+  function placeFloodplainFish(existing, isAdult) {
+    const scale = isAdult ? 1.5 + Math.random() * 0.4 : 0.45 + Math.random() * 0.25;
     const halfW = (FISH_WIDTH * scale) / 2;
     const halfH = (FISH_HEIGHT * scale) / 2 + 4;
     let x, y;
@@ -851,7 +979,7 @@
     vegetation = [];
     floodplainFish = [];
     for (let i = 0; i < FLOODPLAIN_FISH_COUNT; i++) {
-      floodplainFish.push(placeFloodplainFish(floodplainFish));
+      floodplainFish.push(placeFloodplainFish(floodplainFish, i < FLOODPLAIN_ADULT_COUNT));
     }
   }
 
@@ -998,6 +1126,25 @@
     floatingTexts = floatingTexts.filter((f) => f.age < FLOATING_TEXT_DURATION);
   }
 
+  // A DOM popup (see .score-popup in style.css) next to the score HUD
+  // text — the running total already ticks up every frame from elapsed
+  // time, so a pickup's score bump is easy to miss in there; this makes
+  // that specific moment obvious. Appended as a sibling in #hud (via
+  // scoreEl.parentElement), positioned using scoreEl's own offset, rather
+  // than as a child of scoreEl itself — scoreEl.textContent is overwritten
+  // every frame (see update()), which would silently delete a child
+  // element the instant it's added. `el.remove()` on animationend rather
+  // than a timer, so it can't drift out of sync with the CSS duration.
+  function showScorePopup(amount) {
+    const el = document.createElement("span");
+    el.className = "score-popup";
+    el.textContent = `+${amount}`;
+    el.style.left = `${scoreEl.offsetLeft + scoreEl.offsetWidth + 6}px`;
+    el.style.top = `${scoreEl.offsetTop}px`;
+    el.addEventListener("animationend", () => el.remove());
+    scoreEl.parentElement.appendChild(el);
+  }
+
   function rectsOverlap(a, b) {
     return (
       a.x < b.x + b.width &&
@@ -1018,6 +1165,23 @@
         spawnObstacle(finalSection);
         const interval = Math.max(MIN_SPAWN_INTERVAL, BASE_SPAWN_INTERVAL - elapsed * 15);
         spawnTimer = interval;
+      }
+
+      // An extra, independent spawn stream layered on top of the normal
+      // weighted pick above (not a substitute for it) — see
+      // level.finalSectionBonusObstacle. Boosting an obstacle's share of
+      // the weighted pick necessarily crowds out the others, since only
+      // one type spawns per normal tick; spawning this one on its own
+      // separate timer instead adds more of it without touching how often
+      // anything else spawns.
+      const bonus = level.finalSectionBonusObstacle;
+      if (finalSection && bonus) {
+        bonusSpawnTimer -= dt * 1000;
+        if (bonusSpawnTimer <= 0) {
+          const bonusType = level.obstacleTypes.find((o) => o.type === bonus.type);
+          obstacles.push(bonusType.make());
+          bonusSpawnTimer = bonus.interval;
+        }
       }
     }
 
@@ -1117,6 +1281,7 @@
         bonusScore += level.setpiece.pickup.score;
         updateHealthDisplay();
         floatingTexts.push({ x: p.x + p.width, y: p.y, text: "+ health", age: 0 });
+        showScorePopup(level.setpiece.pickup.score);
         return false;
       }
       return p.y < HEIGHT + p.height;
@@ -1219,7 +1384,7 @@
       pickupSpawnTimer = PICKUP_FIRST_SPAWN_DELAY;
       pickupIntroShown = false;
       updateHealthDisplay();
-      showBanner(level.setpiece.enterBanner, 2.2);
+      if (level.setpiece.enterBanner) showBanner(level.setpiece.enterBanner, 2.2);
     } else if (setpieceActive && !setpieceExiting && elapsed >= SETPIECE_START_TIME + SETPIECE_DURATION) {
       setpieceExiting = true;
       setpieceExitY = 0;
@@ -1350,6 +1515,126 @@
       if (stepPhase < step) {
         ctx.fillStyle = "rgba(255,255,255,0.4)";
         ctx.fillRect(left, y, right - left, step);
+      }
+    }
+  }
+
+  // Draws a one-off concrete dam wall spanning the full river, with a
+  // notch cut out over the fish-ladder channel's current position — the
+  // barrier the ladder exists to bypass. `bottomY` is a *world*-anchored
+  // position (worldPos = setpieceDistance - y, same convention as
+  // drawSetpieceChannel/setpieceChannelCenter): passing setpieceDistance
+  // itself pins the wall to the moment the set-piece began, so it scrolls
+  // down into view once at the very front of the channel and then off the
+  // bottom for good, exactly like any other obstacle, rather than being
+  // tied to the reveal-sweep animation (which freezes once fully swept in
+  // and would otherwise leave the wall stuck on screen).
+  //
+  // The world scrolls from top (upstream, not yet reached) to bottom
+  // (downstream, already passed) as the fish swims "upstream" in place, so
+  // `top` is the crest (the upstream lip water pours over) and `bottomY`
+  // is the base — the downstream face the fish actually meets first,
+  // where the spillway plunges into a turbulent pool. Texture is laid out
+  // to match: a crest lip at `top`, cascading flow streaks strengthening
+  // toward the base, and churning whitewater right at `bottomY`.
+  //
+  // The notch uses one fixed, straight-sided position for the whole band
+  // (evaluated at the base, where it hands off to the channel below) rather
+  // than following the channel's curve row by row — real spillway gates
+  // are straight rectangular openings, and letting a tall band track a
+  // fast-curving sine wave turned it into a diagonal wedge instead of a
+  // wall. It only needs to line up at the seam where the two meet.
+  function drawDamFace(bottomY) {
+    const damFace = level.setpiece.damFace;
+    if (!damFace) return;
+    const top = bottomY - damFace.height;
+    // "A fish length" of turbulent plunge-pool water trails downstream of
+    // the base, per the request to give the whitewater more presence in
+    // front of the wall rather than a thin line hugging its foot.
+    const tailLength = FISH_HEIGHT;
+    if (top > HEIGHT || bottomY + tailLength < 0) return;
+
+    const channelWidth = RIVER_WIDTH * level.setpiece.channelWidthFrac;
+    const center = setpieceChannelCenter(setpieceDistance - bottomY);
+    const gapLeft = center - channelWidth / 2;
+    const gapRight = center + channelWidth / 2;
+
+    const step = 2;
+    const t = performance.now() / 1000;
+    const pierSpacing = 12;
+    const fallSpeed = 34; // px/sec the spillway streaks fall down the face
+    const dashPeriod = 10;
+
+    const from = Math.max(0, top);
+    const to = Math.min(HEIGHT, bottomY);
+    for (let y = from; y < to; y += step) {
+      const rowT = (y - top) / damFace.height; // 0 at the crest, 1 at the base
+
+      ctx.fillStyle = damFace.color;
+      ctx.fillRect(RIVER_LEFT, y, gapLeft - RIVER_LEFT, step);
+      ctx.fillRect(gapRight, y, RIVER_RIGHT - gapRight, step);
+
+      // Pier/buttress shadow columns, skipped over the ladder notch
+      ctx.fillStyle = damFace.darkColor;
+      for (let bx = RIVER_LEFT + 4; bx < gapLeft; bx += pierSpacing) {
+        ctx.fillRect(bx, y, 3, step);
+      }
+      for (let bx = Math.ceil((gapRight + 4) / pierSpacing) * pierSpacing; bx < RIVER_RIGHT; bx += pierSpacing) {
+        ctx.fillRect(bx, y, 3, step);
+      }
+
+      // Spillway water sheeting straight down the face — dash streaks that
+      // fall based only on y and wall-clock time (each column keeps a
+      // fixed, purely spatial phase offset rather than one that also
+      // shifts with time), so they read as falling water, not a diagonal
+      // noise field whose interference pattern could appear to drift
+      // sideways or even upward.
+      if (rowT > 0.12) {
+        const dashLen = 2 + rowT * 5; // longer/denser streaks toward the base
+        ctx.fillStyle = damFace.foamColor;
+        for (let bx = RIVER_LEFT + 2; bx < gapLeft - 1; bx += 4) {
+          const colPhase = (bx * 7) % dashPeriod;
+          const cycle = (((y - top - colPhase) - t * fallSpeed) % dashPeriod + dashPeriod) % dashPeriod;
+          if (cycle < dashLen) ctx.fillRect(bx, y, 2, step);
+        }
+        for (let bx = gapRight + 2; bx < RIVER_RIGHT - 1; bx += 4) {
+          const colPhase = (bx * 7) % dashPeriod;
+          const cycle = (((y - top - colPhase) - t * fallSpeed) % dashPeriod + dashPeriod) % dashPeriod;
+          if (cycle < dashLen) ctx.fillRect(bx, y, 2, step);
+        }
+      }
+
+      // Darker frame at the notch mouth so it reads as an opening cut into
+      // the wall rather than a random gap between two fills
+      ctx.fillStyle = damFace.darkColor;
+      ctx.fillRect(Math.max(RIVER_LEFT, gapLeft - 2), y, 2, step);
+      ctx.fillRect(Math.min(RIVER_RIGHT - 2, gapRight), y, 2, step);
+    }
+
+    // Crest/roadway lip along the top (upstream) edge
+    if (top >= 0 && top < HEIGHT) {
+      ctx.fillStyle = damFace.crestColor;
+      ctx.fillRect(RIVER_LEFT, top, RIVER_WIDTH, 3);
+    }
+
+    // Churning whitewater plunge pool trailing downstream of the base for
+    // about a fish-length, on either side of the calmer ladder notch —
+    // stays chaotic/multi-directional (unlike the directed spillway
+    // streaks above) since real turbulence has no consistent flow
+    // direction, fading out with distance from the wall.
+    const turbFrom = Math.max(0, bottomY - 4);
+    const turbTo = Math.min(HEIGHT, bottomY + tailLength);
+    ctx.fillStyle = damFace.turbulentColor;
+    for (let ty = turbFrom; ty < turbTo; ty += 3) {
+      const distT = Math.min(1, Math.max(0, (ty - bottomY) / tailLength));
+      const threshold = 0.05 + distT * 0.95; // dense at the wall, fades to nothing a fish-length out
+      for (let bx = RIVER_LEFT + 1; bx < gapLeft - 1; bx += 3) {
+        const noise = Math.sin(bx * 1.3 + t * 9 + ty * 0.8) * Math.cos(ty * 1.1 - t * 7);
+        if (noise > threshold) ctx.fillRect(bx, ty, 3, 3);
+      }
+      for (let bx = gapRight + 1; bx < RIVER_RIGHT - 1; bx += 3) {
+        const noise = Math.sin(bx * 1.3 + t * 9 + ty * 0.8) * Math.cos(ty * 1.1 - t * 7);
+        if (noise > threshold) ctx.fillRect(bx, ty, 3, 3);
       }
     }
   }
@@ -1496,6 +1781,7 @@
       } else {
         drawSetpieceChannel(0, setpieceRevealY);
       }
+      drawDamFace(setpieceDistance);
     } else {
       drawRiverScene(BANK_WIDTH);
     }
@@ -1613,6 +1899,63 @@
     });
   }
   drawTitleFish();
+
+  // Draws each playable species as a family line on the win screen: three
+  // small babies trailing a full-size adult, all facing right. The sprites
+  // are authored nose-up (rows 0 -> tail) for the vertical swim gameplay,
+  // so each fish is rotated 90° clockwise about its own center to face
+  // right instead — that maps local "up" (the nose) to screen "right".
+  // Static, drawn once, same as drawTitleFish.
+  function drawWinFish() {
+    const winCanvas = document.getElementById("win-fish-canvas");
+    if (!winCanvas) return;
+    const winCtx = winCanvas.getContext("2d");
+    winCtx.imageSmoothingEnabled = false;
+
+    // Baby ratio dropped from 0.42 to 0.3 (a bigger adult/baby gap reads
+    // more clearly as "parent" vs. "offspring"), and adultPixel raised to
+    // fill the canvas now that it's bigger (see #win-fish-canvas in
+    // style.css/index.html) rather than sized to the old, tighter one.
+    const adultPixel = 3.4;
+    const babyPixel = adultPixel * 0.3;
+    const gap = 6;
+    const rowGap = 8;
+
+    function drawFacingRight(lvl, pixelSize, cx, cy) {
+      const dims = spriteDims(lvl.fish.sprite, pixelSize);
+      winCtx.save();
+      winCtx.translate(cx, cy);
+      winCtx.rotate(Math.PI / 2);
+      drawSprite(lvl.fish.sprite, lvl.fish.palette, -dims.width / 2, -dims.height / 2, pixelSize, lvl.fish.outline, winCtx);
+      winCtx.restore();
+    }
+
+    // Rotated 90°, each sprite's row count (its length) runs horizontally
+    // and its column count (its girth) runs vertically. The adult leads on
+    // the right (the direction every fish is facing); babies trail in from
+    // the left behind it.
+    const rows = LEVELS.map((lvl) => {
+      const babyDims = spriteDims(lvl.fish.sprite, babyPixel);
+      const adultDims = spriteDims(lvl.fish.sprite, adultPixel);
+      const lengths = [babyDims.height, babyDims.height, babyDims.height, adultDims.height];
+      const totalWidth = lengths.reduce((a, b) => a + b, 0) + gap * (lengths.length - 1);
+      return { lvl, lengths, totalWidth, rowHeight: adultDims.width };
+    });
+
+    const totalHeight = rows.reduce((sum, r) => sum + r.rowHeight, 0) + rowGap * (rows.length - 1);
+    let y = (winCanvas.height - totalHeight) / 2;
+    for (const row of rows) {
+      let x = (winCanvas.width - row.totalWidth) / 2;
+      const cy = y + row.rowHeight / 2;
+      row.lengths.forEach((len, i) => {
+        const isAdult = i === row.lengths.length - 1;
+        drawFacingRight(row.lvl, isAdult ? adultPixel : babyPixel, x + len / 2, cy);
+        x += len + gap;
+      });
+      y += row.rowHeight + rowGap;
+    }
+  }
+  drawWinFish();
 
   // Dev/test entry point: ?level=2 (or 3) jumps straight into that level
   // instead of the normal start screen, so individual levels can be

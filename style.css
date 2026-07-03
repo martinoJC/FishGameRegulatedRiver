@@ -49,6 +49,39 @@ html, body {
   pointer-events: none;
 }
 
+/* Pops up next to the score HUD text on every pickup, separate from the
+   canvas "+ health" label over the pickup itself — that one's about the
+   health refill, this one's about the score bump, and they're easy to
+   miss if the only feedback is the running total silently ticking up.
+   Positioned via inline left/top (see showScorePopup in game.js) rather
+   than anchored to #score itself, since #score's textContent is
+   overwritten every frame and would wipe out a child element. */
+.score-popup {
+  position: absolute;
+  color: #3f8f4a;
+  font-size: 13px;
+  font-weight: bold;
+  white-space: nowrap;
+  text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.8);
+  pointer-events: none;
+  animation: score-popup-rise 0.9s ease-out forwards;
+}
+
+@keyframes score-popup-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(4px) scale(0.9);
+  }
+  15% {
+    opacity: 1;
+    transform: translateY(0) scale(1.15);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-16px) scale(1);
+  }
+}
+
 #health-bar {
   width: 90px;
   height: 14px;
@@ -116,6 +149,13 @@ html, body {
   image-rendering: crisp-edges;
   width: 180px;
   height: 80px;
+}
+
+#win-fish-canvas {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  width: 200px;
+  height: 110px;
 }
 
 #banner {
