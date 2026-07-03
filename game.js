@@ -593,7 +593,7 @@
     {
       id: 1,
       introTitle: "Level 1: The Open River",
-      introBody: "You're a golden perch swimming upstream through a regulated river.",
+      introBody: "A golden perch swims upstream through a regulated river.",
       fish: {
         sprite: PERCH_SPRITE,
         palette: PERCH_PALETTE,
@@ -944,6 +944,20 @@
   function resetGame() {
     totalScore = 0;
     startLevel(1);
+  }
+
+  // From the start screen only: shows level 1's intro card (same
+  // level-complete-screen used between every other level) before gameplay
+  // begins, instead of dropping straight into it. Setting currentLevel to
+  // 0 lets showLevelCompleteScreen's existing "LEVELS[currentLevel]" /
+  // "currentLevel + 1" lookups resolve to level 1 unchanged, and
+  // continueToNextLevel's startLevel(currentLevel + 1) then correctly
+  // starts level 1 when the player continues.
+  function beginGame() {
+    totalScore = 0;
+    currentLevel = 0;
+    startScreenEl.classList.add("hidden");
+    showLevelCompleteScreen();
   }
 
   // Rejection-samples a position that doesn't overlap any fish already
@@ -1818,6 +1832,7 @@
     if (e.code === "ArrowRight" || e.code === "KeyD") moveRight = true;
     if (e.code === "Space" && isBetweenRuns()) {
       if (state === "levelcomplete") continueToNextLevel();
+      else if (state === "start") beginGame();
       else resetGame();
     }
     // Dev shortcut: jump straight to a level for testing without playing
@@ -1861,10 +1876,11 @@
 
   document.getElementById("touch-controls").addEventListener("touchstart", () => {
     if (state === "levelcomplete") continueToNextLevel();
+    else if (state === "start") beginGame();
     else if (isBetweenRuns()) resetGame();
   });
 
-  startButton.addEventListener("click", resetGame);
+  startButton.addEventListener("click", beginGame);
   restartButton.addEventListener("click", resetGame);
   continueButton.addEventListener("click", continueToNextLevel);
   winRestartButton.addEventListener("click", resetGame);
